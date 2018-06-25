@@ -2,7 +2,7 @@
 ### imports ###
 ###############
 
-from fabric.api import cd, env, lcd, put, prompt, local, sudo
+from fabric.api import cd, env, lcd, put, prompt, local, sudo, run
 from fabric.contrib.files import exists
 
 
@@ -101,13 +101,14 @@ def configure_git():
     """
     if exists(remote_git_dir) is False:
         sudo('mkdir ' + remote_git_dir)
+        sudo('chown {u}:{u} {d}'.format(u=env.user, d=remote_git_dir))
         with cd(remote_git_dir):
-            sudo('mkdir flask_project.git')
+            run('mkdir flask_project.git')
             with cd('flask_project.git'):
-                sudo('git init --bare')
+                run('git init --bare')
                 with lcd(local_config_dir):
                     with cd('hooks'):
-                        put('./post-receive', './', use_sudo=True)
+                        put('./post-receive', './', use_sudo=False)
                         sudo('chmod +x post-receive')
 
 
