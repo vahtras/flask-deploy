@@ -16,7 +16,7 @@ local_config_dir = './config'
 remote_app_dir = '/home/www'
 remote_git_dir = '/home/git'
 remote_flask_dir = remote_app_dir + '/flask_project'
-remote_nginx_dir = '/etc/nginx/sites-enabled'
+remote_nginx_dir = '/etc/nginx/sites-available'
 remote_supervisor_dir = '/etc/supervisor/conf.d'
 
 env.hosts = ['104.200.30.58']  # replace with IP address or hostname
