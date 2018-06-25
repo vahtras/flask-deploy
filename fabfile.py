@@ -19,8 +19,8 @@ remote_flask_dir = remote_app_dir + '/flask_project'
 remote_nginx_dir = '/etc/nginx/sites-enabled'
 remote_supervisor_dir = '/etc/supervisor/conf.d'
 
-env.hosts = ['add_ip_or_domain']  # replace with IP address or hostname
-env.user = 'newuser'
+env.hosts = ['104.200.30.58']  # replace with IP address or hostname
+env.user = 'olav'
 # env.password = 'blah!'
 
 
