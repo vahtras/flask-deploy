@@ -31,11 +31,11 @@ env.user = 'olav'
 def install_requirements():
     """ Install required packages. """
     sudo('apt-get update')
-    sudo('apt-get install -y python')
-    sudo('apt-get install -y python-pip')
-    sudo('apt-get install -y python-virtualenv')
+    sudo('apt-get install -y python3')
+    sudo('apt-get install -y python3-pip')
+    sudo('apt-get install -y python3-virtualenv')
     sudo('apt-get install -y nginx')
-    sudo('apt-get install -y gunicorn')
+    sudo('apt-get install -y gunicorn3')
     sudo('apt-get install -y supervisor')
     sudo('apt-get install -y git')
 
@@ -52,8 +52,8 @@ def install_flask():
         sudo('mkdir ' + remote_flask_dir)
     with lcd(local_app_dir):
         with cd(remote_app_dir):
-            sudo('virtualenv env')
-            sudo('source env/bin/activate')
+            sudo('virtualenv venv3 -p python3')
+            sudo('source venv3/bin/activate')
             sudo('pip install Flask==0.10.1')
         with cd(remote_flask_dir):
             put('*', './', use_sudo=True)
