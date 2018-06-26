@@ -131,6 +131,9 @@ def deploy():
         local('git push production master')
         sudo('supervisorctl restart flask_project')
 
+def restart():
+        sudo('supervisorctl restart flask_project')
+
 
 def rollback():
     """
