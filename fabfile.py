@@ -50,14 +50,14 @@ def install_flask():
         sudo('mkdir ' + remote_app_dir)
         sudo('chown {u}:{u} {d}'.format(u=env.user, d=remote_app_dir))
     if exists(remote_flask_dir) is False:
-        run('mkdir ' + remote_flask_dir)
+        run('mkdir -p ' + remote_flask_dir + '/flask_project')
     with lcd(local_app_dir):
-        with cd(remote_app_dir):
+        with cd(remote_flask_dir):
             run('virtualenv venv3 -p python3')
             run('source venv3/bin/activate')
             run('pip install Flask==0.10.1')
         with cd(remote_flask_dir):
-            put('*', './', use_sudo=False)
+            put('*', './flask_project', use_sudo=False)
 
 
 def configure_nginx():
