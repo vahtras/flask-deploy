@@ -10,12 +10,13 @@ from fabric.contrib.files import exists
 ### config ###
 ##############
 
-local_app_dir = './flask_project'
+project = 'flask_project'
+local_app_dir = './{}'.format(project)
 local_config_dir = './config'
 
 remote_app_dir = '/home/www'
 remote_git_dir = '/home/git'
-remote_flask_dir = remote_app_dir + '/flask_project'
+remote_flask_dir = '{}/{}'.format(remote_app_dir, project)
 remote_nginx_dir = '/etc/nginx/sites-available'
 remote_supervisor_dir = '/etc/supervisor/conf.d'
 
@@ -50,14 +51,14 @@ def install_flask():
         sudo('mkdir ' + remote_app_dir)
         sudo('chown {u}:{u} {d}'.format(u=env.user, d=remote_app_dir))
     if exists(remote_flask_dir) is False:
-        run('mkdir -p ' + remote_flask_dir + '/flask_project')
+        run('mkdir -p {}/{}'.format(remote_flask_dir, project))
     with lcd(local_app_dir):
         with cd(remote_flask_dir):
             run('virtualenv venv3 -p python3')
             run('source venv3/bin/activate')
             run('pip install Flask==0.10.1')
         with cd(remote_flask_dir):
-            put('*', './flask_project', use_sudo=False)
+            put('*', './{}'.format(project), use_sudo=False)
 
 
 def configure_nginx():
@@ -71,13 +72,13 @@ def configure_nginx():
     sudo('/etc/init.d/nginx start')
     if exists('/etc/nginx/sites-enabled/default'):
         sudo('rm /etc/nginx/sites-enabled/default')
-    if exists('/etc/nginx/sites-enabled/flask_project') is False:
-        sudo('touch /etc/nginx/sites-available/flask_project')
-        sudo('ln -s /etc/nginx/sites-available/flask_project' +
-             ' /etc/nginx/sites-enabled/flask_project')
+    if exists('/etc/nginx/sites-enabled/%s' % project) is False:
+        sudo('touch /etc/nginx/sites-available/%s' % project)
+        sudo(('ln -s /etc/nginx/sites-available/{p}' +
+             ' /etc/nginx/sites-enabled/{p}').format(p=project))
     with lcd(local_config_dir):
         with cd(remote_nginx_dir):
-            put('./flask_project', './', use_sudo=True)
+            put('./%s' % project, './', use_sudo=True)
     sudo('/etc/init.d/nginx restart')
 
 
@@ -87,10 +88,10 @@ def configure_supervisor():
     2. Copy local config to remote config
     3. Register new command
     """
-    if exists('/etc/supervisor/conf.d/flask_project.conf') is False:
+    if exists('/etc/supervisor/conf.d/%s.conf' % project) is False:
         with lcd(local_config_dir):
             with cd(remote_supervisor_dir):
-                put('./flask_project.conf', './', use_sudo=True)
+                put('./%s.conf' % project, './', use_sudo=True)
                 sudo('supervisorctl reread')
                 sudo('supervisorctl update')
 
@@ -104,8 +105,8 @@ def configure_git():
         sudo('mkdir ' + remote_git_dir)
         sudo('chown {u}:{u} {d}'.format(u=env.user, d=remote_git_dir))
         with cd(remote_git_dir):
-            run('mkdir flask_project.git')
-            with cd('flask_project.git'):
+            run('mkdir %s.git' % project)
+            with cd('%s.git' % project):
                 run('git init --bare')
                 with lcd(local_config_dir):
                     with cd('hooks'):
@@ -116,7 +117,12 @@ def configure_git():
 def run_app():
     """ Run the app! """
     with cd(remote_flask_dir):
-        sudo('supervisorctl start flask_project')
+        sudo('supervisorctl start %s' % project)
+
+def stop_app():
+    """ Run the app! """
+    with cd(remote_flask_dir):
+        sudo('supervisorctl stop %s' % project)
 
 
 def deploy():
@@ -129,10 +135,10 @@ def deploy():
         commit_message = prompt("Commit message?")
         local('git commit -am "{0}"'.format(commit_message))
         local('git push production master')
-        sudo('supervisorctl restart flask_project')
+        sudo('supervisorctl restart %s' % project)
 
 def restart():
-        sudo('supervisorctl restart flask_project')
+        sudo('supervisorctl restart %s' % project)
 
 
 def rollback():
@@ -143,7 +149,7 @@ def rollback():
     with lcd(local_app_dir):
         local('git revert master  --no-edit')
         local('git push production master')
-        sudo('supervisorctl restart flask_project')
+        sudo('supervisorctl restart %s' % project)
 
 
 def status():
@@ -157,3 +163,11 @@ def create():
     configure_nginx()
     configure_supervisor()
     configure_git()
+
+def clean():
+    stop_app()
+    sudo('rm -rf %s' % remote_app_dir)
+    sudo('rm -rf %s' % remote_git_dir)
+    sudo('rm -f /etc/supervisor/conf.d/%s.conf' % project)
+    sudo('rm -f /etc/nginx/sites-available/%s % project')
+    sudo('rm -f /etc/nginx/sites-enabled/%s % project')
