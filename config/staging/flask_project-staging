@@ -5,6 +5,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
     location /static {
-        alias  /home/www/flask_staging/flask_staging/static/;
+        alias  /home/www/flask_project-staging/flask_project-staging/static/;
     }
 }
