@@ -89,11 +89,11 @@ def configure_nginx(proj, staging=""):
     if exists('/etc/nginx/sites-enabled/default'):
         sudo('rm /etc/nginx/sites-enabled/default')
 
-    enabled = '/etc/nginx/sites-enabled/%s' % proj
-    available = '/etc/nginx/sites-available/%s' % proj
+    enabled = '/etc/nginx/sites-enabled/%s' % conf_name(proj, staging)
+    available = '/etc/nginx/sites-available/%s' % conf_name(proj, staging)
     if exists(enabled) is False:
         sudo('touch %s' % available)
-        sudo('ln -s %s %s' % (avaliable, enabled))
+        sudo('ln -s %s %s' % (available, enabled))
 
     config = local_config_dir(proj, staging)
 
@@ -118,7 +118,7 @@ def configure_supervisor(proj, staging=""):
     3. Register new command
     """
             
-    if exists('/etc/supervisor/conf.d/%s.conf' % proj) is False:
+    if exists('/etc/supervisor/conf.d/%s.conf' % conf_name(proj, staging)) is False:
         with lcd(local_config_dir(proj, staging)):
             with cd(REMOTE_SUPERVISOR_DIR):
                 conffile = "%s.conf" % proj
@@ -128,7 +128,7 @@ def configure_supervisor(proj, staging=""):
                 sudo('supervisorctl reread && supervisorctl update')
 
 
-def configure_git(app, staging=""):
+def configure_git(proj, staging=""):
     """
     1. Setup bare Git repo
     2. Create post-receive hook
@@ -136,16 +136,17 @@ def configure_git(app, staging=""):
     if exists(REMOTE_GIT_DIR) is False:
         sudo('mkdir ' + REMOTE_GIT_DIR)
         sudo('chown {u}:{u} {d}'.format(u=env.user, d=REMOTE_GIT_DIR))
+    if exists(REMOTE_GIT_DIR + '/%s' % conf_name(proj, staging)) is False:
         with cd(REMOTE_GIT_DIR):
-            run('mkdir %s.git' % app)
-            with cd('%s.git' % app):
+            run('mkdir %s.git' % conf_name(proj, staging))
+            with cd('%s.git' % conf_name(proj, staging)):
                 run('git init --bare')
-                with lcd(local_config_dir(app, staging)):
+                with lcd(local_config_dir(proj, staging)):
                     with cd('hooks'):
-                        with open(local_config_dir(app, staging) + '/post-receive', 'w') as hook:
+                        with open(local_config_dir(proj, staging) + '/post-receive', 'w') as hook:
                             hook.write("""#!/bin/sh
 GIT_WORK_TREE=/home/www/%s git checkout -f
-""" % conf_name(app, staging))
+""" % conf_name(proj, staging))
                         put('./post-receive', './', use_sudo=False)
                         sudo('chmod +x post-receive')
 
@@ -204,10 +205,11 @@ def create(proj, staging=""):
     configure_supervisor(proj, staging)
     configure_git(proj, staging)
 
-def clean(app):
-    stop_app(app)
-    sudo('rm -rf %s' % REMOTE_WWW_DIR)
-    sudo('rm -rf %s' % REMOTE_GIT_DIR)
-    sudo('rm -f /etc/supervisor/conf.d/%s.conf' % app)
-    sudo('rm -f /etc/nginx/sites-available/%s' % app)
-    sudo('rm -f /etc/nginx/sites-enabled/%s' % app)
+def clean(proj, staging=""):
+    proj_ = conf_name(proj, staging)
+    stop_app(proj_)
+    sudo('rm -rf %s/%s' % (REMOTE_WWW_DIR, proj_))
+    sudo('rm -rf %s/%s' % (REMOTE_GIT_DIR, proj_))
+    sudo('rm -f /etc/supervisor/conf.d/%s.conf' % proj_)
+    sudo('rm -f /etc/nginx/sites-available/%s' % proj_)
+    sudo('rm -f /etc/nginx/sites-enabled/%s' % proj_)
