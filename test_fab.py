@@ -1,9 +1,10 @@
 import unittest
+import pytest
 import sys
 try:
-    from unittest.mock import patch, call, mock_open
+    from unittest.mock import patch, call, mock_open, MagicMock
 except ImportError:
-    from mock import patch, call, mock_open
+    from mock import patch, call, mock_open, MagicMock
 
 
 from fabfile import *
@@ -12,288 +13,327 @@ from fabfile import *
 #@patch('fabfile.sudo')
 #@patch('fabfile.local')
 #@patch('fabfile.run')
-#@patch('fabfile.lcd')
+#@patch('fabfile.lcd.assert_not_called()
 #@patch('fabfile.cd')
 #@patch('fabfile.put')
 
-@patch('fabfile.c')
+#@patch('fabfile.c')
+
+@patch('invoke.tasks.isinstance') # necessary for mocking
+@patch('fabfile.exists')
 class TestFab(unittest.TestCase):
 
-        
-    def test_install_www(self, c):
-        c.exists.return_value = False
-        install_www()
-        c.sudo.assert_has_calls(
+    def setUp(self):
+        #i.return_value = True
+        self.c = MagicMock()
+
+    def test_hello(self, *args):
+        hello(self.c)
+        self.c.run.assert_called_once_with('echo "Hello world!"')
+    
+    def test_install_www(self, *args):
+        exists, _ = args
+        exists.return_value = False
+        install_www(self.c)
+        self.c.sudo.assert_has_calls(
             [call('mkdir /home/www'), call('chown olav:olav /home/www')]
         )
 
-    def test_install_flask1(self, c):
-        c.exists.return_value = False
+    def test_install_flask1(self, *args):
+        exists, _ = args
+        exists.return_value = False
 
-        install_flask('proj')
+        install_flask(self.c, 'proj')
 
-        c.lcd.assert_called_once_with('./proj')
-        c.cd.assert_called_with('/home/www/proj')
-        c.run.assert_has_calls([
-            call('mkdir -p /home/www/proj/proj'),
-            call('virtualenv venv3 -p python3'),
-            call('source venv3/bin/activate'),
-            call('pip install Flask==0.10.1'),
+        self.c.lcd.assert_not_called()
+        assert call('/home/www/proj') in self.c.cd.mock_calls
+        assert call('/home/git/proj.git') in self.c.cd.mock_calls
+        self.c.run.assert_has_calls([
+            call("mkdir -p /home/www/proj"),
+            call("""\
+virtualenv venv3 -p python3
+source venv3/bin/activate
+pip install Flask
+"""
+            ),
         ])
-        c.put.assert_called_once_with('*', './proj', use_sudo=False)
-
-    def test_install_flask2(self, c):
-        c.exists.return_value = False
-
-        install_flask('proj', 'staging')
-
-        c.lcd.assert_called_once_with('./proj')
-        c.cd.assert_called_with('/home/www/proj-staging')
-        c.run.assert_has_calls([
-            call('mkdir -p /home/www/proj-staging/proj'),
-            call('virtualenv venv3 -p python3'),
-            call('source venv3/bin/activate'),
-            call('pip install Flask==0.10.1'),
+        self.c.local.assert_has_calls([
+            call("git remote get-url production || \
+git remote add production olav@104.200.38.58:/home/www/proj.git"),
+            call("git push production master"),
         ])
-        c.put.assert_called_once_with('*', './proj', use_sudo=False)
 
+    def test_install_flask2(self, *args):
+        exists, _ = args
+        exists.return_value = False
 
-    def test_confname(self, c):
+        install_flask(self.c, 'proj', 'staging')
+
+        self.c.lcd.assert_not_called()
+        assert call('/home/www/proj-staging') in self.c.cd.mock_calls
+        assert call('/home/git/proj-staging.git') in self.c.cd.mock_calls
+        self.c.run.assert_has_calls([
+            call("mkdir -p /home/www/proj-staging"),
+            call("""\
+virtualenv venv3 -p python3
+source venv3/bin/activate
+pip install Flask
+"""
+            ),
+        ])
+        self.c.local.assert_has_calls([
+            call("git remote get-url staging || \
+git remote add staging olav@104.200.38.58:/home/www/proj-staging.git"),
+            call("git push staging master"),
+        ])
+
+    def test_confname(self, *args):
         assert conf_name('proj') == 'proj'
         assert conf_name('proj', 'staging') == 'proj-staging'
 
-    def test_configure_nginx1a(self, c):
+    def test_configure_nginx1a(self, *args):
+        exists, _ = args
+        exists.side_effect=[True, True]
 
-        c.exists.side_effect=[True, True]
-        configure_nginx('proj')
+        configure_nginx(self.c, 'proj')
 
-        c.sudo.assert_has_calls([
+        self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
             call('rm /etc/nginx/sites-enabled/default'),
+            call('mv /tmp/proj /etc/nginx/sites-available/proj'),
             call('/etc/init.d/nginx restart'),
         ])
-        c.lcd.assert_called_with('./config/production')
-        c.cd.assert_called_with('/etc/nginx/sites-available')
-        c.put.assert_called_with('proj', './', use_sudo=True)
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_called_with('/etc/nginx/sites-available')
+        self.c.put.assert_called_with('./config/production/proj', '/tmp/proj')
 
-    def test_configure_nginx2a(self, c):
+    def test_configure_nginx2a(self, *args):
+        exists, _ = args
+        exists.side_effect=[True, True]
 
-        c.exists.side_effect=[True, True]
-        configure_nginx('proj', 'staging')
+        configure_nginx(self.c, 'proj', 'staging')
 
-        c.sudo.assert_has_calls([
+        self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
             call('rm /etc/nginx/sites-enabled/default'),
+            call('mv /tmp/proj-staging /etc/nginx/sites-available/proj-staging'),
             call('/etc/init.d/nginx restart'),
         ])
-        c.lcd.assert_called_with('./config/staging')
-        c.cd.assert_called_with('/etc/nginx/sites-available')
-        c.put.assert_called_with('proj-staging', './', use_sudo=True)
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_called_with('/etc/nginx/sites-available')
+        self.c.put.assert_called_with('./config/staging/proj-staging', '/tmp/proj-staging')#, use_sudo=True)
 
-    def test_configure_nginx1b(self, c):
+    def test_configure_nginx1b(self, *args):
+        exists, _ = args
+        exists.side_effect=[False, False]
 
-        c.exists.side_effect=[False, False]
-        configure_nginx('proj')
-        c.sudo.assert_has_calls([
+        configure_nginx(self.c, 'proj')
+
+        self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
             call('touch /etc/nginx/sites-available/proj'),
             call('ln -s /etc/nginx/sites-available/proj /etc/nginx/sites-enabled/proj'),
+            call('mv /tmp/proj /etc/nginx/sites-available/proj'),
             call('/etc/init.d/nginx restart'),
         ])
-        c.lcd.assert_called_with('./config/production')
-        c.cd.assert_called_with('/etc/nginx/sites-available')
-        c.put.assert_called_with('proj', './', use_sudo=True)
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_called_with('/etc/nginx/sites-available')
+        self.c.put.assert_called_with('./config/production/proj', '/tmp/proj')#, use_sudo=True)
 
-    def test_configure_nginx2b(self, c):
+    def test_configure_nginx2b(self, *args):
+        exists, _ = args
+        exists.side_effect=[False, False]
 
-        c.exists.side_effect=[False, False]
-        configure_nginx('proj', 'staging')
+        configure_nginx(self.c, 'proj', 'staging')
 
-        c.sudo.assert_has_calls([
+        self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
             call('touch /etc/nginx/sites-available/proj-staging'),
             call('ln -s /etc/nginx/sites-available/proj-staging /etc/nginx/sites-enabled/proj-staging'),
+            call('mv /tmp/proj-staging /etc/nginx/sites-available/proj-staging'),
             call('/etc/init.d/nginx restart'),
         ])
-        c.lcd.assert_called_with('./config/staging')
-        c.cd.assert_called_with('/etc/nginx/sites-available')
-        c.put.assert_called_with('proj-staging', './', use_sudo=True)
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_called_with('/etc/nginx/sites-available')
+        self.c.put.assert_called_with('./config/staging/proj-staging', '/tmp/proj-staging')#, use_sudo=True)
 
 
-    def test_configure_supervisor1(self, c):
+    def test_configure_supervisor1(self, *args):
+        exists, _ = args
+        exists.return_value = True
 
-        c.exists.return_value = True
-        configure_supervisor('proj')
+        configure_supervisor(self.c, 'proj')
 
-        c.sudo.assert_not_called()
-        c.lcd.assert_not_called()
-        c.cd.assert_not_called()
-        c.put.assert_not_called()
+        self.c.sudo.assert_not_called()
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_not_called()
+        self.c.put.assert_not_called()
 
-        c.exists.return_value = False
-        configure_supervisor('proj')
+        exists.return_value = False
 
-        c.lcd.assert_called_once_with('./config/production')
-        c.cd.assert_called_once_with('/etc/supervisor/conf.d')
-        c.put.assert_called_with('proj.conf', './', use_sudo=True)
-        c.sudo.assert_called_with('supervisorctl reread && supervisorctl update')
+        configure_supervisor(self.c, 'proj')
 
-    def test_configure_supervisor2(self, c):
+        self.c.lcd.assert_not_called()
+        #self.c.cd.assert_called_once_with('/etc/supervisor/conf.d')
+        self.c.put.assert_called_with('./config/production/proj.conf', '/tmp/proj.conf')#, use_sudo=True)
+        self.c.sudo.assert_has_calls([
+            call('mv /tmp/proj.conf /etc/supervisor/conf.d/proj.conf'),
+            call('supervisorctl reread'),
+            call('supervisorctl update'),
+        ])
 
-        c.exists.return_value = True
-        configure_supervisor('proj', 'staging')
+    def test_configure_supervisor2(self, *args):
+        exists, _ = args
+        exists.return_value = True
 
-        c.sudo.assert_not_called()
-        c.lcd.assert_not_called()
-        c.cd.assert_not_called()
-        c.put.assert_not_called()
+        configure_supervisor(self.c, 'proj', 'staging')
 
-        c.exists.return_value = False
-        configure_supervisor('proj', 'staging')
+        self.c.sudo.assert_not_called()
+        self.c.lcd.assert_not_called()
+        self.c.cd.assert_not_called()
+        self.c.put.assert_not_called()
 
-        c.lcd.assert_called_once_with('./config/staging')
-        c.cd.assert_called_once_with('/etc/supervisor/conf.d')
-        c.put.assert_called_with('proj-staging.conf', './', use_sudo=True)
-        c.sudo.assert_called_with('supervisorctl reread && supervisorctl update')
+        exists.return_value = False
+        configure_supervisor(self.c, 'proj', 'staging')
 
-    def test_configure_git1(self, c):
+        self.c.lcd.assert_not_called()
+        #self.c.cd.assert_called_once_with('/etc/supervisor/conf.d')
+        self.c.put.assert_called_with('./config/staging/proj-staging.conf', '/tmp/proj-staging.conf')#, use_sudo=True)
+        self.c.sudo.assert_has_calls([
+            call('mv /tmp/proj-staging.conf /etc/supervisor/conf.d/proj-staging.conf'),
+            call('supervisorctl reread'),
+            call('supervisorctl update'),
+        ])
 
-        c.exists.return_value = True
-        configure_git('proj')
-        c.sudo.assert_not_called()
-        c.cd.assert_not_called()
-        c.lcd.assert_not_called()
-        c.run.assert_not_called()
+    def test_remote_git_dir(self, *args):
+        assert remote_git_dir('proj')  == '/home/git/proj.git'
+        assert remote_git_dir('proj', 'stag')  == '/home/git/proj-stag.git'
+
+    #@pytest.mark.skip()
+    def test_configure_git1(self, *args):
+        exists, _ = args
+        exists.side_effect = [True, True]
+
+        configure_git(self.c, 'proj')
+
+        self.c.sudo.assert_not_called()
+        self.c.cd.assert_not_called()
+        self.c.lcd.assert_not_called()
+        self.c.run.assert_not_called()
         
-        c.exists.return_value = False
-        m = mock_open()
-        with patch('fabfile.open', m):
-            configure_git('proj')
-        m.assert_called_once_with('./config/production/post-receive', 'w')
-        m().write.assert_called_once_with(
-            '#!/bin/sh\nGIT_WORK_TREE=/home/www/proj git checkout -f\n'
-        )
+        exists.side_effect = [False, False]
 
-        c.sudo.assert_has_calls([
+        configure_git(self.c, 'proj')
+
+        self.c.sudo.assert_has_calls([
             call('mkdir /home/git'),
             call('chown olav:olav /home/git'),
-            call('chmod +x post-receive')
         ])
-        c.lcd.assert_called_once_with('./config/production')
+        self.c.lcd.assert_not_called()
 
-        assert call('/home/git') in c.cd.mock_calls
-        assert call('proj.git') in c.cd.mock_calls
-        assert call('hooks') in c.cd.mock_calls
-
-        c.run.assert_has_calls([
-            call('mkdir proj.git'),
-            call('git init --bare'),
+        post_receive_file = '/home/git/proj.git/hooks/post-receive'
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/home/www/proj git checkout -f"
+        self.c.run.assert_has_calls([
+            call('git init --bare /home/git/proj.git'),
+            call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
+            call(f'chmod +x {post_receive_file}')
         ])
 
-        c.put.assert_called_once_with('./post-receive', './', use_sudo=False)
 
-    def test_configure_git2(self, c):
+    #@pytest.mark.skip()
+    def test_configure_git2(self, *args):
+        exists, _ = args
+        exists.side_effect = [True, True]
 
-        c.exists.return_value = True
-        configure_git('proj', 'staging')
-        c.sudo.assert_not_called()
-        c.cd.assert_not_called()
-        c.lcd.assert_not_called()
-        c.run.assert_not_called()
+        configure_git(self.c, 'proj', 'staging')
+
+        self.c.sudo.assert_not_called()
+        self.c.cd.assert_not_called()
+        self.c.lcd.assert_not_called()
+        self.c.run.assert_not_called()
         
-        c.exists.return_value = False
-        
-        m = mock_open()
-        with patch('fabfile.open', m):
-            configure_git('proj', 'staging')
-        m.assert_called_once_with('./config/staging/post-receive', 'w')
-        m().write.assert_called_once_with(
-            '#!/bin/sh\nGIT_WORK_TREE=/home/www/proj-staging git checkout -f\n'
-        )
-        
-        c.sudo.assert_has_calls([
+        exists.side_effect = [False, False]
+
+        configure_git(self.c, 'proj', 'staging')
+
+        self.c.sudo.assert_has_calls([
             call('mkdir /home/git'),
             call('chown olav:olav /home/git'),
-            call('chmod +x post-receive')
         ])
-        c.lcd.assert_called_once_with('./config/staging')
+        self.c.lcd.assert_not_called()
 
-        assert call('/home/git') in c.cd.mock_calls
-        assert call('proj-staging.git') in c.cd.mock_calls
-        assert call('hooks') in c.cd.mock_calls
-
-        c.run.assert_has_calls([
-            call('mkdir proj-staging.git'),
-            call('git init --bare'),
+        post_receive_file = '/home/git/proj-staging.git/hooks/post-receive'
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/home/www/proj-staging git checkout -f"
+        self.c.run.assert_has_calls([
+            call('git init --bare /home/git/proj-staging.git'),
+            call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
+            call(f'chmod +x {post_receive_file}')
         ])
 
-        c.put.assert_called_once_with('./post-receive', './', use_sudo=False)
-            
-    def test_run1(self, c):
 
-        run_app('proj')
-        c.cd.assert_called_once_with('/home/www/proj')
-        c.sudo.assert_called_once_with('supervisorctl start proj')
+    def test_run1(self, *args):
 
-    def test_run2(self, c):
+        run_app(self.c, 'proj')
+        #self.c.cd.assert_called_once_with('/home/www/proj')
+        self.c.sudo.assert_called_once_with('supervisorctl start proj')
 
-        run_app('proj', 'staging')
-        c.cd.assert_called_once_with('/home/www/proj-staging')
-        c.sudo.assert_called_once_with('supervisorctl start proj-staging')
+    def test_run2(self, *args):
 
-    def test_stop1(self, c):
+        run_app(self.c, 'proj', 'staging')
+        #self.c.cd.assert_called_once_with('/home/www/proj-staging')
+        self.c.sudo.assert_called_once_with('supervisorctl start proj-staging')
 
-        stop_app('proj')
-        c.cd.assert_called_once_with('/home/www/proj')
-        c.sudo.assert_called_once_with('supervisorctl stop proj')
+    def test_stop1(self, *args):
 
-    def test_stop2(self, c):
+        stop_app(self.c, 'proj')
+        self.c.sudo.assert_called_once_with('supervisorctl stop proj')
 
-        stop_app('proj', 'staging')
-        c.cd.assert_called_once_with('/home/www/proj-staging')
-        c.sudo.assert_called_once_with('supervisorctl stop proj-staging')
+    def test_stop2(self, *args):
 
-    def test_roolback1(self, c):
+        stop_app(self.c, 'proj', 'staging')
+        self.c.sudo.assert_called_once_with('supervisorctl stop proj-staging')
 
-        rollback('proj')
+    def test_rollback1(self, *args):
 
-        c.lcd.assert_called_once_with('./proj')
-        c.local.assert_has_calls([
+        rollback(self.c, 'proj')
+
+        self.c.lcd.assert_not_called()
+        self.c.local.assert_has_calls([
             call('git revert master --no-edit'),
             call('git push production master')
         ])
-        c.sudo.assert_called_once_with('supervisorctl restart proj')
+        self.c.sudo.assert_called_once_with('supervisorctl restart proj')
 
-    def test_roolback2(self, c):
+    def test_rollback2(self, *args):
 
-        rollback('proj', 'staging')
+        rollback(self.c, 'proj', 'staging')
 
-        c.lcd.assert_called_once_with('./proj')
-        c.local.assert_has_calls([
+        self.c.lcd.assert_not_called()
+        self.c.local.assert_has_calls([
             call('git revert master --no-edit'),
             call('git push staging master')
         ])
-        c.sudo.assert_called_once_with('supervisorctl restart proj-staging')
+        self.c.sudo.assert_called_once_with('supervisorctl restart proj-staging')
 
-    def test_status(self, c):
-        status()
-        c.sudo.assert_called_once_with('supervisorctl status')
+    def test_status(self, *args):
+        status(self.c)
+        self.c.sudo.assert_called_once_with('supervisorctl status')
 
-    def test_create1(self, c):
-        create('proj')
+    def test_create1(self, *args):
+        create(self.c, 'proj')
         #c.sudo.assert_has_calls(call('apt-get update'))
-        assert call('apt-get update') in c.sudo.mock_calls
+        assert call('apt-get update') in self.c.sudo.mock_calls
 
-    def test_create2(self, c):
-        create('proj', 'staging')
+    def test_create2(self, *args):
+        create(self.c, 'proj', 'staging')
         #c.sudo.assert_has_calls(call('apt-get update'))
-        assert call('apt-get update') in c.sudo.mock_calls
+        assert call('apt-get update') in self.c.sudo.mock_calls
 
-    def test_clean1(self, c):
+    def test_clean1(self, *args):
 
-        clean('proj')
+        clean(self.c, 'proj')
 
-        c.sudo.assert_has_calls([
+        self.c.sudo.assert_has_calls([
             call('supervisorctl stop proj'),
             call('rm -rf /home/www/proj'),
             call('rm -rf /home/git/proj'),
@@ -302,11 +342,11 @@ class TestFab(unittest.TestCase):
             call('rm -f /etc/nginx/sites-enabled/proj'),
         ])
 
-    def test_clean2(self, c):
+    def test_clean2(self, *args):
 
-        clean('proj', 'staging')
+        clean(self.c, 'proj', 'staging')
 
-        c.sudo.assert_has_calls([
+        self.c.sudo.assert_has_calls([
             call('supervisorctl stop proj-staging'),
             call('rm -rf /home/www/proj-staging'),
             call('rm -rf /home/git/proj-staging'),
