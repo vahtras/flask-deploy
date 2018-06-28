@@ -213,3 +213,6 @@ def clean(proj, staging=""):
     sudo('rm -f /etc/supervisor/conf.d/%s.conf' % proj_)
     sudo('rm -f /etc/nginx/sites-available/%s' % proj_)
     sudo('rm -f /etc/nginx/sites-enabled/%s' % proj_)
+
+def self_signed_cert():
+    local("openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 ")
