@@ -41,7 +41,14 @@ def hello(c):
 
 @task
 def install_requirements(c):
-    """ Install required packages. """
+    """
+    Install required packages.
+
+    Python
+    Gunicorn
+    Supervisor
+    Git
+    """
     c.sudo('apt-get update')
     c.sudo('apt-get install -y python3')
     c.sudo('apt-get install -y python3-pip')
@@ -54,6 +61,11 @@ def install_requirements(c):
 
 @task
 def install_www(c):
+    """
+    Install root www directory
+
+    Here: /home/www
+    """
     if exists(c, REMOTE_WWW_DIR):
         print(REMOTE_WWW_DIR)
     else:
@@ -63,9 +75,11 @@ def install_www(c):
 @task
 def install_flask(c, proj="proj", staging=""):
     """
+    Install Flask project
+
     1. Create project directories
     2. Create and activate a virtualenv
-    3. Copy Flask files to remote host
+    3. Checkout from previously configured git repo
     """
 
     install_www(c)
@@ -92,6 +106,8 @@ pip install Flask
 @task
 def configure_nginx(c, proj, staging=""):
     """
+    Configure nginx 
+
     1. Remove default nginx config file
     2. Create new config file
     3. Setup new symbolic link
@@ -124,6 +140,7 @@ def putty(c):
     c.sudo('mv /tmp/flask_project /etc/nginx/sites-available/flask_project')
 
 def conf_name(proj, staging=""):
+    """Generate production/staging configuration names"""
     if staging:
         return "-".join((proj ,staging))
     else:
@@ -132,6 +149,8 @@ def conf_name(proj, staging=""):
 @task
 def configure_supervisor(c, proj, staging=""):
     """
+    Configure supervisor for nginx
+
     1. Create new supervisor config file
     2. Copy local config to remote config
     3. Register new command
@@ -227,6 +246,9 @@ def status(c):
 
 @task
 def create(c, proj, staging=""):
+    """
+    Install a deployment from scratch
+    """
     install_requirements(c)
     configure_git(c, proj, staging)
     install_flask(c, proj, staging)
@@ -235,6 +257,9 @@ def create(c, proj, staging=""):
 
 @task
 def clean(c, proj, staging=""):
+    """
+    Clear a configuration from server
+    """
     proj_ = conf_name(proj, staging)
     stop_app(c, proj, staging)
     c.sudo('rm -rf %s/%s' % (REMOTE_WWW_DIR, proj_))
