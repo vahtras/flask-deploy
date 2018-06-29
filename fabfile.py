@@ -4,13 +4,7 @@
 
 import os
 from invoke import task
-#from fabric.api import cd, env, lcd, put, prompt, local, sudo, run
-#from fabric.contrib.files import exists
 from patchwork.files import exists
-#from fabric import Connection, Config
-#config = Config(overrides={"sudo": {"password": os.environ["PASSWORD"]}})
-#c = Connection('104.200.30.58', config=config)
-
 
 ##############
 ### config ###
@@ -35,12 +29,7 @@ def remote_flask_dir(proj, staging=""):
         remote += "-" + staging
     return remote
 
-
-# env.hosts = ['104.200.30.58']  # replace with IP address or hostname
 user = 'olav'
-# env.password = 'blah!'
-
-
 
 #############
 ### tasks ###
@@ -121,7 +110,6 @@ def configure_nginx(c, proj, staging=""):
 
     config = local_config_dir(proj, staging)
 
-    #with c.lcd(config):
     with c.cd(REMOTE_NGINX_DIR):
         conffile = proj
         if staging:
@@ -150,12 +138,10 @@ def configure_supervisor(c, proj, staging=""):
     """
             
     if exists(c,'/etc/supervisor/conf.d/%s.conf' % conf_name(proj, staging)) is False:
-        #with c.lcd(local_config_dir(proj, staging)):
-        #with c.cd(REMOTE_SUPERVISOR_DIR):
         conffile = "%s.conf" % proj
         if staging:
             conffile =  "-".join([proj, staging]) + ".conf"
-        c.put(local_config_dir(proj, staging)+'/'+conffile,  '/tmp/' + conffile)#, use_sudo=True)
+        c.put(local_config_dir(proj, staging)+'/'+conffile,  '/tmp/' + conffile)
         c.sudo(f'mv /tmp/{conffile} /etc/supervisor/conf.d/{conffile}')
         c.sudo('supervisorctl reread')
         c.sudo('supervisorctl update')
@@ -207,7 +193,6 @@ def deploy(c, app, repo='production'):
     1. Copy new Flask files
     2. Restart gunicorn via supervisor
     """
-    #with lcd(_local_app_dir(app)):
     local('git add -A')
     commit_message = prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
@@ -229,7 +214,6 @@ def rollback(c, proj, staging=''):
     repo = {"": "production"}
     if staging:
         repo[staging] = staging
-    #with c.lcd(_local_app_dir(proj)):
     c.local('git revert master --no-edit')
     c.local('git push %s master' % repo[staging])
     c.sudo('supervisorctl restart %s' % conf_name(proj, staging))
