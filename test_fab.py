@@ -9,6 +9,7 @@ except ImportError:
 
 from fabfile import *
 
+@patch('fabfile.user', 'whom')
 @patch('invoke.tasks.isinstance') # necessary for mocking
 @patch('fabfile.exists')
 class TestFab(unittest.TestCase):
@@ -25,7 +26,7 @@ class TestFab(unittest.TestCase):
         exists.return_value = False
         install_www(self.c)
         self.c.sudo.assert_has_calls(
-            [call('mkdir /home/www'), call('chown olav:olav /home/www')]
+            [call('mkdir /home/www'), call('chown whom:whom /home/www')]
         )
 
     def test_install_flask1(self, *args):
@@ -47,7 +48,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url production || \
-git remote add production olav@104.200.38.58:/home/www/proj.git"),
+git remote add production whom@104.200.38.58:/home/www/proj.git"),
             call("git push production master"),
         ])
 
@@ -70,7 +71,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url staging || \
-git remote add staging olav@104.200.38.58:/home/www/proj-staging.git"),
+git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
             call("git push staging master"),
         ])
 
@@ -202,7 +203,7 @@ git remote add staging olav@104.200.38.58:/home/www/proj-staging.git"),
 
         self.c.sudo.assert_has_calls([
             call('mkdir /home/git'),
-            call('chown olav:olav /home/git'),
+            call('chown whom:whom /home/git'),
         ])
 
         post_receive_file = '/home/git/proj.git/hooks/post-receive'
@@ -230,7 +231,7 @@ git remote add staging olav@104.200.38.58:/home/www/proj-staging.git"),
 
         self.c.sudo.assert_has_calls([
             call('mkdir /home/git'),
-            call('chown olav:olav /home/git'),
+            call('chown whom:whom /home/git'),
         ])
 
         post_receive_file = '/home/git/proj-staging.git/hooks/post-receive'

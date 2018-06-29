@@ -92,7 +92,7 @@ source venv3/bin/activate
 pip install Flask
 '''
             )
-        url = f"olav@104.200.38.58:{remote_flask_dir(proj, staging)}.git"
+        url = f"{user}@104.200.38.58:{remote_flask_dir(proj, staging)}.git"
         repo = "production"
         if staging:
             repo = "staging"
