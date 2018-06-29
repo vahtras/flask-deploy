@@ -10,8 +10,6 @@ from patchwork.files import exists
 ### config ###
 ##############
 
-project = 'flask_project'
-_local_app_dir = lambda app: './%s' % app
 def local_config_dir(proj, staging):
     if staging:
         return './config/staging'
