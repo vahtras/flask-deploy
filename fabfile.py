@@ -132,11 +132,6 @@ def configure_nginx(c, proj, staging=""):
     c.sudo(f"mv /tmp/{conffile} {available}")
     c.sudo('/etc/init.d/nginx restart')
 
-@task
-def putty(c):
-    c.put('./config/production/flask_project', '/tmp/flask_project')
-    c.sudo('mv /tmp/flask_project /etc/nginx/sites-available/flask_project')
-
 def conf_name(proj, staging=""):
     """Generate production/staging configuration names"""
     if staging:

@@ -320,3 +320,17 @@ git remote add staging olav@104.200.38.58:/home/www/proj-staging.git"),
             call('rm -f /etc/nginx/sites-enabled/proj-staging'),
         ])
     
+
+    def test_deploy1(self, *args):
+        with patch('fabfile.run_app') as mrun:
+            with patch('fabfile.stop_app') as mstop:
+                restart(self.c, 'proj')
+        mrun.assert_called_once_with(self.c, 'proj', '')
+        mstop.assert_called_once_with(self.c, 'proj', '')
+
+    def test_deploy2(self, *args):
+        with patch('fabfile.run_app') as mrun:
+            with patch('fabfile.stop_app') as mstop:
+                restart(self.c, 'proj', 'stag')
+        mrun.assert_called_once_with(self.c, 'proj', 'stag')
+        mstop.assert_called_once_with(self.c, 'proj', 'stag')
