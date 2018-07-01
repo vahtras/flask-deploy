@@ -3,7 +3,7 @@ server {
     location / {
         ssl_certificate: /home/www/cert.pem
         ssl_certificate_key: /home/www/key.pem
-        proxy_pass http://localhost:8001;
+        proxy_pass https://localhost:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
