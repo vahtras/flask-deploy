@@ -1,13 +1,19 @@
 server {
     listen 443 ssl;
+    ssl_certificate /home/www/cert.pem;
+    ssl_certificate_key /home/www/key.pem;
     location / {
-        ssl_certificate: /home/www/cert.pem
-        ssl_certificate_key: /home/www/key.pem
-        proxy_pass https://localhost:8001;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
     location /static {
-        alias  /home/www/flask_project-staging/flask_project/static/;
+        alias  /home/www/flask_project/flask_project/static/;
+    }
+}
+server {
+    listen 81;
+    location / {
+        return 301 https://$host$request_uri;
     }
 }
