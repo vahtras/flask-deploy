@@ -1,7 +1,5 @@
 server {
-    listen 443 ssl;
-    ssl_certificate /home/www/cert.pem;
-    ssl_certificate_key /home/www/key.pem;
+    server_name flask-staging.vahtras.se;
     location / {
         proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
@@ -10,10 +8,27 @@ server {
     location /static {
         alias  /home/www/flask_project-staging/flask_project/static/;
     }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate
+/etc/letsencrypt/live/flask-staging.vahtras.se/fullchain.pem; # managed by
+Certbot
+    ssl_certificate_key
+/etc/letsencrypt/live/flask-staging.vahtras.se/privkey.pem; # managed by
+Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
 }
 server {
-    listen 81;
-    location / {
+    if ($host = flask-staging.vahtras.se) {
         return 301 https://$host$request_uri;
-    }
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name flask-staging.vahtras.se;
+    return 404; # managed by Certbot
+
+
 }
