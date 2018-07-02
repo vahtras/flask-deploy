@@ -282,6 +282,9 @@ def install_cert(c, proj, staging="", domain=""):
     """
     if domain:
         target = conf_name(proj, staging)
+        opts = ""
+        if staging:
+            opts += " --staging"
         c.sudo(
-            f'certbot certonly --webroot -w /home/www/{target}/{proj} -d {domain}'
+            f'certbot certonly --webroot -w /home/www/{target}/proj -d {domain}{opts}'
         )
