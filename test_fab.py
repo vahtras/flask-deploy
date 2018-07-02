@@ -335,3 +335,25 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
                 restart(self.c, 'proj', 'stag')
         mrun.assert_called_once_with(self.c, 'proj', 'stag')
         mstop.assert_called_once_with(self.c, 'proj', 'stag')
+
+    def test_install_certbot(self, *args):
+        install_certbot(self.c)
+        self.c.sudo.assert_has_calls([
+            call('apt-get update'),
+            call('apt-get install software-properties-common'),
+            call('add-apt-repository ppa:certbot/certbot'),
+            call('apt-get update'),
+            call('apt-get install certbot'),
+        ])
+
+    def test_install_cert1(self, *args):
+        install_cert(self.c, 'proj', domain='example.com')
+        self.c.sudo.assert_called_once_with(
+            'certbot certonly --webroot -w /var/www/proj -d example.com'
+        )
+
+    def test_install_cert1(self, *args):
+        install_cert(self.c, 'proj', staging='stag', domain='example.com')
+        self.c.sudo.assert_called_once_with(
+            'certbot certonly --webroot -w /home/www/proj-stag/proj -d example.com'
+        )

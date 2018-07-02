@@ -262,3 +262,26 @@ def clean(c, proj, staging=""):
     c.sudo('rm -f /etc/nginx/sites-enabled/%s' % proj_)
 def self_signed_cert():
     local("openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 ")
+
+
+@task
+def install_certbot(c):
+    """
+    Install certbot for letsencrypt
+    """
+    c.sudo('apt-get update')
+    c.sudo('apt-get install software-properties-common')
+    c.sudo('add-apt-repository ppa:certbot/certbot')
+    c.sudo('apt-get update')
+    c.sudo('apt-get install certbot')
+
+@task 
+def install_cert(c, proj, staging="", domain=""):
+    """
+    Generate and install letsencrypt cert
+    """
+    if domain:
+        target = conf_name(proj, staging)
+        c.sudo(
+            f'certbot certonly --webroot -w /home/www/{target}/{proj} -d {domain}'
+        )
