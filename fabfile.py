@@ -270,21 +270,11 @@ def install_certbot(c):
     Install certbot for letsencrypt
     """
     c.sudo('apt-get update')
-    c.sudo('apt-get install software-properties-common')
-    c.sudo('add-apt-repository ppa:certbot/certbot')
-    c.sudo('apt-get update')
-    c.sudo('apt-get install certbot')
+    c.sudo('apt-get install python-certbot-nginx')
 
 @task 
-def install_cert(c, proj, staging="", domain=""):
+def install_cert(c):
     """
     Generate and install letsencrypt cert
     """
-    if domain:
-        target = conf_name(proj, staging)
-        opts = ""
-        if staging:
-            opts += " --staging"
-        c.sudo(
-            f'certbot certonly --webroot -w /home/www/{target}/proj -d {domain}{opts}'
-        )
+    c.sudo('certbot --nginx')
