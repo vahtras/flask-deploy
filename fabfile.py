@@ -16,7 +16,7 @@ def local_config_dir(proj, staging):
     else:
         return './config/production'
 
-REMOTE_WWW_DIR = '/home/www'
+REMOTE_WWW_DIR = '/home/www/sites'
 REMOTE_GIT_DIR = '/home/git'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
 REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
@@ -67,7 +67,7 @@ def install_www(c):
     if exists(c, REMOTE_WWW_DIR):
         print(REMOTE_WWW_DIR)
     else:
-        c.sudo('mkdir ' + REMOTE_WWW_DIR)
+        c.sudo(f'mkdir -p {REMOTE_WWW_DIR}')
         c.sudo('chown {u}:{u} {d}'.format(u=user, d=REMOTE_WWW_DIR))
 
 @task
@@ -102,7 +102,7 @@ pip install Flask
             c.run(f"GIT_WORK_TREE={remote_flask_dir(proj, staging)} git checkout -f")
 
 @task
-def configure_nginx(c, proj, staging=""):
+def configure_nginx(c, site, proj, staging=""):
     """
     Configure nginx 
 
@@ -122,13 +122,11 @@ def configure_nginx(c, proj, staging=""):
         c.sudo('touch %s' % available)
         c.sudo('ln -s %s %s' % (available, enabled))
 
-    config = local_config_dir(proj, staging)
-
     with c.cd(REMOTE_NGINX_DIR):
         conffile = proj
         if staging:
             conffile = "-".join([proj, staging])
-        c.put(config + '/' + conffile, f'/tmp/{conffile}')
+        c.put(f'./config/sites/{site}{available}', f'/tmp/{conffile}')
     c.sudo(f"mv /tmp/{conffile} {available}")
     c.sudo('/etc/init.d/nginx restart')
 
@@ -179,7 +177,7 @@ def configure_git(c, proj, staging=""):
         c.run('git init --bare %s' % remote_git_dir(proj, staging))
         c.run(
             'echo "#!/bin/sh\n' +
-            'GIT_WORK_TREE=/home/www/%s git checkout -f" > %s/hooks/post-receive' 
+            f'GIT_WORK_TREE={REMOTE_WWW_DIR}/%s git checkout -f" > %s/hooks/post-receive' 
             %  (conf_name(proj, staging), remote_git_dir(proj, staging))
         )
         c.run(f'chmod +x {remote_git_dir(proj, staging)}/hooks/post-receive')

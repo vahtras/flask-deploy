@@ -9,6 +9,8 @@ except ImportError:
 
 from fabfile import *
 
+@patch('fabfile.REMOTE_GIT_DIR', '/git')
+@patch('fabfile.REMOTE_WWW_DIR', '/www')
 @patch('fabfile.user', 'whom')
 @patch('invoke.tasks.isinstance') # necessary for mocking
 @patch('fabfile.exists')
@@ -25,9 +27,10 @@ class TestFab(unittest.TestCase):
         exists, _ = args
         exists.return_value = False
         install_www(self.c)
-        self.c.sudo.assert_has_calls(
-            [call('mkdir /home/www'), call('chown whom:whom /home/www')]
-        )
+        self.c.sudo.assert_has_calls([
+            call(f'mkdir -p /www'),
+            call(f'chown whom:whom /www'),
+        ])
 
     def test_install_flask1(self, *args):
         exists, _ = args
@@ -35,10 +38,10 @@ class TestFab(unittest.TestCase):
 
         install_flask(self.c, 'proj')
 
-        assert call('/home/www/proj') in self.c.cd.mock_calls
-        assert call('/home/git/proj.git') in self.c.cd.mock_calls
+        assert call('/www/proj') in self.c.cd.mock_calls
+        assert call(f'/git/proj.git') in self.c.cd.mock_calls
         self.c.run.assert_has_calls([
-            call("mkdir -p /home/www/proj"),
+            call("mkdir -p /www/proj"),
             call("""\
 virtualenv venv3 -p python3
 source venv3/bin/activate
@@ -48,7 +51,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url production || \
-git remote add production whom@104.200.38.58:/home/www/proj.git"),
+git remote add production whom@104.200.38.58:/www/proj.git"),
             call("git push production master"),
         ])
 
@@ -58,10 +61,10 @@ git remote add production whom@104.200.38.58:/home/www/proj.git"),
 
         install_flask(self.c, 'proj', 'staging')
 
-        assert call('/home/www/proj-staging') in self.c.cd.mock_calls
-        assert call('/home/git/proj-staging.git') in self.c.cd.mock_calls
+        assert call('/www/proj-staging') in self.c.cd.mock_calls
+        assert call('/git/proj-staging.git') in self.c.cd.mock_calls
         self.c.run.assert_has_calls([
-            call("mkdir -p /home/www/proj-staging"),
+            call("mkdir -p /www/proj-staging"),
             call("""\
 virtualenv venv3 -p python3
 source venv3/bin/activate
@@ -71,7 +74,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url staging || \
-git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
+git remote add staging whom@104.200.38.58:/www/proj-staging.git"),
             call("git push staging master"),
         ])
 
@@ -83,7 +86,7 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
         exists, _ = args
         exists.side_effect=[True, True]
 
-        configure_nginx(self.c, 'proj')
+        configure_nginx(self.c, 'www.example.com', 'proj')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -92,28 +95,34 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
             call('/etc/init.d/nginx restart'),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
-        self.c.put.assert_called_with('./config/production/proj', '/tmp/proj')
+        self.c.put.assert_called_with(
+            f'./config/sites/www.example.com/etc/nginx/sites-available/proj',
+            '/tmp/proj'
+        )
 
     def test_configure_nginx2a(self, *args):
         exists, _ = args
         exists.side_effect=[True, True]
 
-        configure_nginx(self.c, 'proj', 'staging')
+        configure_nginx(self.c, 'www.example-stag.com', 'proj', 'stag')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
             call('rm /etc/nginx/sites-enabled/default'),
-            call('mv /tmp/proj-staging /etc/nginx/sites-available/proj-staging'),
+            call('mv /tmp/proj-stag /etc/nginx/sites-available/proj-stag'),
             call('/etc/init.d/nginx restart'),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
-        self.c.put.assert_called_with('./config/staging/proj-staging', '/tmp/proj-staging')
+        self.c.put.assert_called_with(
+            f'./config/sites/www.example-stag.com/etc/nginx/sites-available/proj-stag',
+            '/tmp/proj-stag'
+        )
 
     def test_configure_nginx1b(self, *args):
         exists, _ = args
         exists.side_effect=[False, False]
 
-        configure_nginx(self.c, 'proj')
+        configure_nginx(self.c, 'www.example.com', 'proj')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -123,23 +132,29 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
             call('/etc/init.d/nginx restart'),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
-        self.c.put.assert_called_with('./config/production/proj', '/tmp/proj')
+        self.c.put.assert_called_with(
+            './config/sites/www.example.com/etc/nginx/sites-available/proj',
+            '/tmp/proj'
+        )
 
     def test_configure_nginx2b(self, *args):
         exists, _ = args
         exists.side_effect=[False, False]
 
-        configure_nginx(self.c, 'proj', 'staging')
+        configure_nginx(self.c, 'www.example-stag.com', 'proj', 'stag')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
-            call('touch /etc/nginx/sites-available/proj-staging'),
-            call('ln -s /etc/nginx/sites-available/proj-staging /etc/nginx/sites-enabled/proj-staging'),
-            call('mv /tmp/proj-staging /etc/nginx/sites-available/proj-staging'),
+            call('touch /etc/nginx/sites-available/proj-stag'),
+            call('ln -s /etc/nginx/sites-available/proj-stag /etc/nginx/sites-enabled/proj-stag'),
+            call('mv /tmp/proj-stag /etc/nginx/sites-available/proj-stag'),
             call('/etc/init.d/nginx restart'),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
-        self.c.put.assert_called_with('./config/staging/proj-staging', '/tmp/proj-staging')
+        self.c.put.assert_called_with(
+            './config/sites/www.example-stag.com/etc/nginx/sites-available/proj-stag',
+            '/tmp/proj-stag'
+        )
 
 
     def test_configure_supervisor1(self, *args):
@@ -184,8 +199,8 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
         ])
 
     def test_remote_git_dir(self, *args):
-        assert remote_git_dir('proj')  == '/home/git/proj.git'
-        assert remote_git_dir('proj', 'stag')  == '/home/git/proj-stag.git'
+        assert remote_git_dir('proj')  == '/git/proj.git'
+        assert remote_git_dir('proj', 'stag')  == '/git/proj-stag.git'
 
     def test_configure_git1(self, *args):
         exists, _ = args
@@ -202,14 +217,14 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
         configure_git(self.c, 'proj')
 
         self.c.sudo.assert_has_calls([
-            call('mkdir /home/git'),
-            call('chown whom:whom /home/git'),
+            call('mkdir /git'),
+            call('chown whom:whom /git'),
         ])
 
-        post_receive_file = '/home/git/proj.git/hooks/post-receive'
-        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/home/www/proj git checkout -f"
+        post_receive_file = '/git/proj.git/hooks/post-receive'
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/proj git checkout -f"
         self.c.run.assert_has_calls([
-            call('git init --bare /home/git/proj.git'),
+            call('git init --bare /git/proj.git'),
             call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
             call(f'chmod +x {post_receive_file}')
         ])
@@ -230,14 +245,14 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
         configure_git(self.c, 'proj', 'staging')
 
         self.c.sudo.assert_has_calls([
-            call('mkdir /home/git'),
-            call('chown whom:whom /home/git'),
+            call('mkdir /git'),
+            call('chown whom:whom /git'),
         ])
 
-        post_receive_file = '/home/git/proj-staging.git/hooks/post-receive'
-        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/home/www/proj-staging git checkout -f"
+        post_receive_file = '/git/proj-staging.git/hooks/post-receive'
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/proj-staging git checkout -f"
         self.c.run.assert_has_calls([
-            call('git init --bare /home/git/proj-staging.git'),
+            call('git init --bare /git/proj-staging.git'),
             call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
             call(f'chmod +x {post_receive_file}')
         ])
@@ -301,8 +316,8 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
 
         self.c.sudo.assert_has_calls([
             call('supervisorctl stop proj'),
-            call('rm -rf /home/www/proj'),
-            call('rm -rf /home/git/proj'),
+            call('rm -rf /www/proj'),
+            call('rm -rf /git/proj'),
             call('rm -f /etc/supervisor/conf.d/proj.conf'),
             call('rm -f /etc/nginx/sites-available/proj'),
             call('rm -f /etc/nginx/sites-enabled/proj'),
@@ -314,8 +329,8 @@ git remote add staging whom@104.200.38.58:/home/www/proj-staging.git"),
 
         self.c.sudo.assert_has_calls([
             call('supervisorctl stop proj-staging'),
-            call('rm -rf /home/www/proj-staging'),
-            call('rm -rf /home/git/proj-staging'),
+            call('rm -rf /www/proj-staging'),
+            call('rm -rf /git/proj-staging'),
             call('rm -f /etc/supervisor/conf.d/proj-staging.conf'),
             call('rm -f /etc/nginx/sites-available/proj-staging'),
             call('rm -f /etc/nginx/sites-enabled/proj-staging'),
