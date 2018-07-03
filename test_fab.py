@@ -9,6 +9,7 @@ except ImportError:
 
 from fabfile import *
 
+@patch('fabfile.SERVER_IP', '123.456.789.00')
 @patch('fabfile.REMOTE_GIT_DIR', '/git')
 @patch('fabfile.REMOTE_WWW_DIR', '/www')
 @patch('fabfile.user', 'whom')
@@ -51,7 +52,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url production || \
-git remote add production whom@104.200.38.58:/www/proj.git"),
+git remote add production whom@123.456.789.00:/www/proj.git"),
             call("git push production master"),
         ])
 
@@ -74,7 +75,7 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url staging || \
-git remote add staging whom@104.200.38.58:/www/proj-staging.git"),
+git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
             call("git push staging master"),
         ])
 

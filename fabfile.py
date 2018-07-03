@@ -20,6 +20,7 @@ REMOTE_WWW_DIR = '/home/www/sites'
 REMOTE_GIT_DIR = '/home/git'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
 REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
+SERVER_IP = 0
 
 def remote_flask_dir(proj, staging=""):
     remote = '%s/%s' % (REMOTE_WWW_DIR, proj)
@@ -92,7 +93,7 @@ source venv3/bin/activate
 pip install Flask
 '''
             )
-        url = f"{user}@104.200.38.58:{remote_flask_dir(proj, staging)}.git"
+        url = f"{user}@{SERVER_IP}:{remote_flask_dir(proj, staging)}.git"
         repo = "production"
         if staging:
             repo = "staging"
