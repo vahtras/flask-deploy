@@ -10,7 +10,7 @@ except ImportError:
 from fabfile import *
 
 @patch('fabfile.SERVER_IP', '123.456.789.00')
-@patch('fabfile.REMOTE_GIT_DIR', '/git')
+@patch('fabfile.REMOTE_GIT_ROOT', '/git')
 @patch('fabfile.REMOTE_WWW_DIR', '/www')
 @patch('fabfile.user', 'whom')
 @patch('invoke.tasks.isinstance') # necessary for mocking
@@ -205,6 +205,20 @@ git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
             call('supervisorctl update'),
         ])
 
+    def test_remote_git_root(self, *args):
+        exists, _ = args
+
+        exists.return_value
+        create_git_root(self.c)
+        self.c.sudo.assert_not_called()
+
+        exists.return_value = False
+        create_git_root(self.c)
+        self.c.sudo.assert_has_calls([
+            call('mkdir -p /git'),
+            call('chown whom:whom /git'),
+        ])
+
     def test_remote_git_dir(self, *args):
         assert remote_git_dir('proj')  == '/git/proj.git'
         assert remote_git_dir('proj', 'stag')  == '/git/proj-stag.git'
@@ -223,11 +237,6 @@ git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
 
         configure_git(self.c, 'proj')
 
-        self.c.sudo.assert_has_calls([
-            call('mkdir /git'),
-            call('chown whom:whom /git'),
-        ])
-
         post_receive_file = '/git/proj.git/hooks/post-receive'
         post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/proj git checkout -f"
         self.c.run.assert_has_calls([
@@ -241,7 +250,7 @@ git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
         exists, _ = args
         exists.side_effect = [True, True]
 
-        configure_git(self.c, 'proj', 'staging')
+        configure_git(self.c, 'proj', 'stag')
 
         self.c.sudo.assert_not_called()
         self.c.cd.assert_not_called()
@@ -249,17 +258,12 @@ git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
         
         exists.side_effect = [False, False]
 
-        configure_git(self.c, 'proj', 'staging')
+        configure_git(self.c, 'proj', 'stag')
 
-        self.c.sudo.assert_has_calls([
-            call('mkdir /git'),
-            call('chown whom:whom /git'),
-        ])
-
-        post_receive_file = '/git/proj-staging.git/hooks/post-receive'
-        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/proj-staging git checkout -f"
+        post_receive_file = '/git/proj-stag.git/hooks/post-receive'
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/proj-stag git checkout -f"
         self.c.run.assert_has_calls([
-            call('git init --bare /git/proj-staging.git'),
+            call('git init --bare /git/proj-stag.git'),
             call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
             call(f'chmod +x {post_receive_file}')
         ])

@@ -11,7 +11,7 @@ from patchwork.files import exists
 ##############
 
 REMOTE_WWW_DIR = '/home/www/sites'
-REMOTE_GIT_DIR = '/home/git'
+REMOTE_GIT_ROOT = '/home/git'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
 REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
 SERVER_IP = 0
@@ -154,6 +154,14 @@ def configure_supervisor(c, site, proj, staging=""):
         c.sudo('supervisorctl reread')
         c.sudo('supervisorctl update')
 
+@task
+def create_git_root(c):
+    """
+    Create remote git root directory
+    """
+    if not exists(c, REMOTE_GIT_ROOT):
+        c.sudo(f'mkdir -p {REMOTE_GIT_ROOT}')
+        c.sudo(f'chown {user}:{user} {REMOTE_GIT_ROOT}')
 
 @task
 def configure_git(c, proj, staging=""):
@@ -161,12 +169,7 @@ def configure_git(c, proj, staging=""):
     1. Setup bare Git repo
     2. Create post-receive hook
     """
-    if exists(c, REMOTE_GIT_DIR):
-        print(REMOTE_GIT_DIR)
-    else:
-        print("Creating: " + REMOTE_GIT_DIR)
-        c.sudo('mkdir ' + REMOTE_GIT_DIR)
-        c.sudo('chown {u}:{u} {d}'.format(u=user, d=REMOTE_GIT_DIR))
+    create_git_root(c)
 
     if exists(c, remote_git_dir(proj, staging)):
         print(remote_git_dir(proj, staging))
@@ -181,7 +184,7 @@ def configure_git(c, proj, staging=""):
         c.run(f'chmod +x {remote_git_dir(proj, staging)}/hooks/post-receive')
 
 def remote_git_dir(proj, staging=""):
-    return os.path.join(REMOTE_GIT_DIR, conf_name(proj, staging)) + ".git"
+    return os.path.join(REMOTE_GIT_ROOT, conf_name(proj, staging)) + ".git"
     
 
 @task
@@ -252,7 +255,7 @@ def clean(c, proj, staging=""):
     proj_ = conf_name(proj, staging)
     stop_app(c, proj, staging)
     c.sudo('rm -rf %s/%s' % (REMOTE_WWW_DIR, proj_))
-    c.sudo('rm -rf %s/%s' % (REMOTE_GIT_DIR, proj_))
+    c.sudo('rm -rf %s/%s' % (REMOTE_GIT_ROOT, proj_))
     c.sudo('rm -f /etc/supervisor/conf.d/%s.conf' % proj_)
     c.sudo('rm -f /etc/nginx/sites-available/%s' % proj_)
     c.sudo('rm -f /etc/nginx/sites-enabled/%s' % proj_)
