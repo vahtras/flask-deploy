@@ -10,12 +10,6 @@ from patchwork.files import exists
 ### config ###
 ##############
 
-def local_config_dir(proj, staging):
-    if staging:
-        return './config/staging'
-    else:
-        return './config/production'
-
 REMOTE_WWW_DIR = '/home/www/sites'
 REMOTE_GIT_DIR = '/home/git'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
@@ -139,7 +133,7 @@ def conf_name(proj, staging=""):
         return proj
 
 @task
-def configure_supervisor(c, proj, staging=""):
+def configure_supervisor(c, site, proj, staging=""):
     """
     Configure supervisor for nginx
 
@@ -152,7 +146,10 @@ def configure_supervisor(c, proj, staging=""):
         conffile = "%s.conf" % proj
         if staging:
             conffile =  "-".join([proj, staging]) + ".conf"
-        c.put(local_config_dir(proj, staging)+'/'+conffile,  '/tmp/' + conffile)
+        c.put(
+            f'./config/sites/{site}/etc/supervisor/conf.d/{conffile}',
+            f'/tmp/{conffile}'
+        )
         c.sudo(f'mv /tmp/{conffile} /etc/supervisor/conf.d/{conffile}')
         c.sudo('supervisorctl reread')
         c.sudo('supervisorctl update')

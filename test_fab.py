@@ -60,12 +60,12 @@ git remote add production whom@123.456.789.00:/www/proj.git"),
         exists, _ = args
         exists.return_value = False
 
-        install_flask(self.c, 'proj', 'staging')
+        install_flask(self.c, 'proj', 'stag')
 
-        assert call('/www/proj-staging') in self.c.cd.mock_calls
-        assert call('/git/proj-staging.git') in self.c.cd.mock_calls
+        assert call('/www/proj-stag') in self.c.cd.mock_calls
+        assert call('/git/proj-stag.git') in self.c.cd.mock_calls
         self.c.run.assert_has_calls([
-            call("mkdir -p /www/proj-staging"),
+            call("mkdir -p /www/proj-stag"),
             call("""\
 virtualenv venv3 -p python3
 source venv3/bin/activate
@@ -75,19 +75,19 @@ pip install Flask
         ])
         self.c.local.assert_has_calls([
             call("git remote get-url staging || \
-git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
+git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
             call("git push staging master"),
         ])
 
     def test_confname(self, *args):
         assert conf_name('proj') == 'proj'
-        assert conf_name('proj', 'staging') == 'proj-staging'
+        assert conf_name('proj', 'stag') == 'proj-stag'
 
     def test_configure_nginx1a(self, *args):
         exists, _ = args
         exists.side_effect=[True, True]
 
-        configure_nginx(self.c, 'www.example.com', 'proj')
+        configure_nginx(self.c, 'foo.com', 'proj')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -97,7 +97,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
         self.c.put.assert_called_with(
-            f'./config/sites/www.example.com/etc/nginx/sites-available/proj',
+            f'./config/sites/foo.com/etc/nginx/sites-available/proj',
             '/tmp/proj'
         )
 
@@ -105,7 +105,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         exists, _ = args
         exists.side_effect=[True, True]
 
-        configure_nginx(self.c, 'www.example-stag.com', 'proj', 'stag')
+        configure_nginx(self.c, 'foo-stag.com', 'proj', 'stag')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -115,7 +115,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
         self.c.put.assert_called_with(
-            f'./config/sites/www.example-stag.com/etc/nginx/sites-available/proj-stag',
+            f'./config/sites/foo-stag.com/etc/nginx/sites-available/proj-stag',
             '/tmp/proj-stag'
         )
 
@@ -123,7 +123,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         exists, _ = args
         exists.side_effect=[False, False]
 
-        configure_nginx(self.c, 'www.example.com', 'proj')
+        configure_nginx(self.c, 'foo.com', 'proj')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -134,7 +134,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
         self.c.put.assert_called_with(
-            './config/sites/www.example.com/etc/nginx/sites-available/proj',
+            './config/sites/foo.com/etc/nginx/sites-available/proj',
             '/tmp/proj'
         )
 
@@ -142,7 +142,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         exists, _ = args
         exists.side_effect=[False, False]
 
-        configure_nginx(self.c, 'www.example-stag.com', 'proj', 'stag')
+        configure_nginx(self.c, 'foo-stag.com', 'proj', 'stag')
 
         self.c.sudo.assert_has_calls([
             call('/etc/init.d/nginx start'),
@@ -153,7 +153,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         ])
         self.c.cd.assert_called_with('/etc/nginx/sites-available')
         self.c.put.assert_called_with(
-            './config/sites/www.example-stag.com/etc/nginx/sites-available/proj-stag',
+            './config/sites/foo-stag.com/etc/nginx/sites-available/proj-stag',
             '/tmp/proj-stag'
         )
 
@@ -162,7 +162,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         exists, _ = args
         exists.return_value = True
 
-        configure_supervisor(self.c, 'proj')
+        configure_supervisor(self.c, 'foo.com', 'proj')
 
         self.c.sudo.assert_not_called()
         self.c.cd.assert_not_called()
@@ -170,9 +170,12 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
 
         exists.return_value = False
 
-        configure_supervisor(self.c, 'proj')
+        configure_supervisor(self.c, 'foo.com', 'proj')
 
-        self.c.put.assert_called_with('./config/production/proj.conf', '/tmp/proj.conf')
+        self.c.put.assert_called_with(
+            './config/sites/foo.com/etc/supervisor/conf.d/proj.conf',
+            '/tmp/proj.conf'
+        )
         self.c.sudo.assert_has_calls([
             call('mv /tmp/proj.conf /etc/supervisor/conf.d/proj.conf'),
             call('supervisorctl reread'),
@@ -183,18 +186,21 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         exists, _ = args
         exists.return_value = True
 
-        configure_supervisor(self.c, 'proj', 'staging')
+        configure_supervisor(self.c, 'foo.com', 'proj', 'stag')
 
         self.c.sudo.assert_not_called()
         self.c.cd.assert_not_called()
         self.c.put.assert_not_called()
 
         exists.return_value = False
-        configure_supervisor(self.c, 'proj', 'staging')
+        configure_supervisor(self.c, 'foo.com', 'proj', 'stag')
 
-        self.c.put.assert_called_with('./config/staging/proj-staging.conf', '/tmp/proj-staging.conf')
+        self.c.put.assert_called_with(
+            './config/sites/foo.com/etc/supervisor/conf.d/proj-stag.conf',
+            '/tmp/proj-stag.conf'
+        )
         self.c.sudo.assert_has_calls([
-            call('mv /tmp/proj-staging.conf /etc/supervisor/conf.d/proj-staging.conf'),
+            call('mv /tmp/proj-stag.conf /etc/supervisor/conf.d/proj-stag.conf'),
             call('supervisorctl reread'),
             call('supervisorctl update'),
         ])
@@ -291,13 +297,13 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
 
     def test_rollback2(self, *args):
 
-        rollback(self.c, 'proj', 'staging')
+        rollback(self.c, 'proj', 'stag')
 
         self.c.local.assert_has_calls([
             call('git revert master --no-edit'),
-            call('git push staging master')
+            call('git push stag master')
         ])
-        self.c.sudo.assert_called_once_with('supervisorctl restart proj-staging')
+        self.c.sudo.assert_called_once_with('supervisorctl restart proj-stag')
 
     def test_status(self, *args):
         status(self.c)
@@ -308,7 +314,7 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
         assert call('apt-get update') in self.c.sudo.mock_calls
 
     def test_create2(self, *args):
-        create(self.c, 'proj', 'staging')
+        create(self.c, 'proj', 'stag')
         assert call('apt-get update') in self.c.sudo.mock_calls
 
     def test_clean1(self, *args):
@@ -326,15 +332,15 @@ git remote add staging whom@123.456.789.00:/www/proj-staging.git"),
 
     def test_clean2(self, *args):
 
-        clean(self.c, 'proj', 'staging')
+        clean(self.c, 'proj', 'stag')
 
         self.c.sudo.assert_has_calls([
-            call('supervisorctl stop proj-staging'),
-            call('rm -rf /www/proj-staging'),
-            call('rm -rf /git/proj-staging'),
-            call('rm -f /etc/supervisor/conf.d/proj-staging.conf'),
-            call('rm -f /etc/nginx/sites-available/proj-staging'),
-            call('rm -f /etc/nginx/sites-enabled/proj-staging'),
+            call('supervisorctl stop proj-stag'),
+            call('rm -rf /www/proj-stag'),
+            call('rm -rf /git/proj-stag'),
+            call('rm -f /etc/supervisor/conf.d/proj-stag.conf'),
+            call('rm -f /etc/nginx/sites-available/proj-stag'),
+            call('rm -f /etc/nginx/sites-enabled/proj-stag'),
         ])
     
 
