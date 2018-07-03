@@ -314,8 +314,9 @@ git remote add staging whom@123.456.789.00:/www/proj-stag.git"),
         self.c.sudo.assert_called_once_with('supervisorctl status')
 
     def test_create1(self, *args):
-        create(self.c, 'proj')
-        assert call('apt-get update') in self.c.sudo.mock_calls
+        with patch('fabfile.install_requirements') as m_inst_req:
+            create(self.c, 'proj')
+            m_inst_req.assert_called_once_with(self.c)
 
     def test_create2(self, *args):
         create(self.c, 'proj', 'stag')

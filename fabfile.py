@@ -10,11 +10,11 @@ from patchwork.files import exists
 ### config ###
 ##############
 
-REMOTE_WWW_DIR = '/home/www/sites'
+REMOTE_WWW_DIR = '/home/www'
 REMOTE_GIT_ROOT = '/home/git'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
 REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
-SERVER_IP = 0
+SERVER_IP ="127.0.0.1"
 
 def remote_flask_dir(proj, staging=""):
     remote = '%s/%s' % (REMOTE_WWW_DIR, proj)
@@ -277,3 +277,41 @@ def install_cert(c):
     Generate and install letsencrypt cert
     """
     c.sudo('certbot --nginx')
+
+@task
+def generate_site_nginx(c, site):
+    """
+    Generate configuration files for nginx
+    """
+    from sites.template import NGINX
+    #c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
+    try:
+        os.makedirs(f'sites/{site}/etc/nginx/sites-available')
+    except FileExistsError:
+        pass
+    with open(f'sites/{site}/etc/nginx/sites-available/{site}', 'w') as f:
+        f.write(NGINX.format(server_name=site, root=REMOTE_WWW_DIR))
+        
+
+@task
+def generate_site_supervisor(c, site, module, app):
+    """
+    Generate configuration files for supervisor/gunicorn
+    """
+    from sites.template import SUPERVISOR
+
+    try:
+        os.makedirs(f'sites/{site}/etc/supervisor/conf.d')
+    except FileExistsError:
+        pass
+
+    with open(f'sites/{site}/etc/supervisor/conf.d/{site}', 'w') as f:
+        f.write(SUPERVISOR.format(
+            program=site,
+            module=module,
+            app=app,
+            site=site,
+            root=REMOTE_WWW_DIR,
+            user=user,
+            )
+        )
