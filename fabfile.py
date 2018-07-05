@@ -329,9 +329,10 @@ def generate_site_supervisor(c, site, module='flask_project', app='app'):
     with open(f'sites/{site}/etc/supervisor/conf.d/{site}.conf', 'w') as f:
         f.write(SUPERVISOR.format(
             program=site,
+            bin=f'{remote_site_dir(site)}/venv3/bin',
             module=module,
             app=app,
-            site=site,
+            site_dir=remote_site_dir(site),
             root=REMOTE_ROOT,
             user=user,
             )
