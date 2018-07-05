@@ -303,7 +303,7 @@ def generate_site_nginx(c, site):
     """
     Generate configuration files for nginx
     """
-    from sites.template import NGINX
+    from template import NGINX
     #c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
     try:
         os.makedirs(f'sites/{site}/etc/nginx/sites-available')
@@ -318,7 +318,7 @@ def generate_site_supervisor(c, site, module, app):
     """
     Generate configuration files for supervisor/gunicorn
     """
-    from sites.template import SUPERVISOR
+    from template import SUPERVISOR
 
     try:
         os.makedirs(f'sites/{site}/etc/supervisor/conf.d')
