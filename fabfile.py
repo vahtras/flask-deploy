@@ -47,8 +47,11 @@ def create(c, site):
     install_requirements(c)
     configure_git(c, site)
     install_flask(c, site)
+    push_remote(c, site)
+    generate_site_nginx(c, site)
     configure_nginx(c, site)
     configure_supervisor(c, site)
+    #start
 
 @task
 def install_requirements(c):
@@ -76,7 +79,7 @@ def install_site_dir(c, site):
 @task
 def install_venv(c, site):
     c.run(f"""\
-virtualenv {remote_site_dir(site)}/venv3
+virtualenv {remote_site_dir(site)}/venv3 -p python3
 source {remote_site_dir(site)}/venv3/bin/activate
 pip install Flask
 """

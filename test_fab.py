@@ -39,7 +39,7 @@ class TestFab(unittest.TestCase):
     def test_install_venv(self, *args):
         install_venv(self.c, 'foo.bar')
         self.c.run.assert_called_once_with(f"""\
-virtualenv /www/sites/foo.bar/venv3
+virtualenv /www/sites/foo.bar/venv3 -p python3
 source /www/sites/foo.bar/venv3/bin/activate
 pip install Flask
 """
