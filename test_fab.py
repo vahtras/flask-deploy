@@ -27,11 +27,6 @@ class TestFab(unittest.TestCase):
 # install #
 ###########
 
-    def test_create(self, *args):
-        with patch('fabfile.install_requirements') as m_inst_req:
-            create(self.c, 'foo.bar')
-            m_inst_req.assert_called_once_with(self.c)
-
     def test_site_dir(self, *args):
         install_site_dir(self.c, 'foo.bar')
         self.c.run.assert_called_once_with(f'mkdir -p /www/sites/foo.bar')
@@ -71,20 +66,6 @@ pip install Flask
             call(f'chmod +x {post_receive_file}')
         ])
 
-    @pytest.mark.skip()
-    def test_remote_git_root(self, *args):
-        exists, _ = args
-
-        exists.return_value
-        create_git_root(self.c)
-        self.c.sudo.assert_not_called()
-
-        exists.return_value = False
-        create_git_root(self.c)
-        self.c.sudo.assert_has_calls([
-            call('mkdir -p /git'),
-            call('chown whom:whom /git'),
-        ])
 
     def test_remote_git_dir(self, *args):
         assert remote_git_dir('foo.bar')  == '/www/sites/foo.bar/git'
@@ -109,9 +90,14 @@ pip install Flask
         exists.return_value = False
 
         with patch('fabfile.install_root'):
-            install_flask(self.c, 'foo.bar')
+            with patch('fabfile.install_venv'):
+                install_flask(self.c, 'foo.bar')
         self.c.run.assert_has_calls([
             call("mkdir -p /www/sites/foo.bar/src"),
+            call(
+                "ln -s  /www/sites/foo.bar/src/flask_app/static"
+                " /www/sites/foo.bar/static"
+            ),
         ])
 
     def test_remote_flask_dir(self, *args):

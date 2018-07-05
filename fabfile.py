@@ -40,7 +40,7 @@ def hello(c):
 ###########
 
 @task
-def create(c, site):
+def create(c, site, module='flask_project', app='app'):
     """
     Install a deployment from scratch
     """
@@ -50,6 +50,7 @@ def create(c, site):
     push_remote(c, site)
     generate_site_nginx(c, site)
     configure_nginx(c, site)
+    generate_site_supervisor(c, site, module, app)
     configure_supervisor(c, site)
     #start
 
@@ -114,7 +115,7 @@ def configure_git(c, site):
 #########
 
 @task
-def install_flask(c, site):
+def install_flask(c, site, module='flask_project', app='app'):
     """
     Install Flask project
 
@@ -127,6 +128,7 @@ def install_flask(c, site):
         print(f'{remote_flask_dir(site)} exists')
     else:
         c.run(f'mkdir -p {remote_flask_dir(site)}')
+        c.run(f'ln -s  {remote_flask_dir(site)}/{module}/static {remote_site_dir(site)}/static')
         install_venv(c, site)
 #        with c.cd(remote_site_dir(site)):
 #            c.run('''virtualenv venv3 -p python3
@@ -314,7 +316,7 @@ def generate_site_nginx(c, site):
         
 
 @task
-def generate_site_supervisor(c, site, module, app):
+def generate_site_supervisor(c, site, module='flask_project', app='app'):
     """
     Generate configuration files for supervisor/gunicorn
     """
