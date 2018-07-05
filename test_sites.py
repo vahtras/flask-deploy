@@ -33,6 +33,7 @@ server {
     location /static {
         alias  /www/sites/foo.bar/static/;
     }
+}
 """
     )
 

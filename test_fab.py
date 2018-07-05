@@ -202,7 +202,7 @@ pip install Flask
         configure_supervisor(self.c, 'foo.bar')
 
         self.c.put.assert_called_with(
-            './config/sites/foo.bar/etc/supervisor/conf.d/foo.bar.conf',
+            './sites/foo.bar/etc/supervisor/conf.d/foo.bar.conf',
             '/tmp/foo.bar.conf'
         )
         self.c.sudo.assert_has_calls([

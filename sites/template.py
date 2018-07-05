@@ -10,6 +10,7 @@ server {{
     location /static {{
         alias  {root}/sites/{server_name}/static/;
     }}
+}}
 """
 
 SUPERVISOR = """\

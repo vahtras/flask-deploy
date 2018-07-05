@@ -211,7 +211,7 @@ def configure_supervisor(c, site):
             
     if exists(c,f'/etc/supervisor/conf.d/{site}.conf') is False:
         c.put(
-            f'./config/sites/{site}/etc/supervisor/conf.d/{site}.conf',
+            f'./sites/{site}/etc/supervisor/conf.d/{site}.conf',
             f'/tmp/{site}.conf'
         )
         c.sudo(f'mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf')
