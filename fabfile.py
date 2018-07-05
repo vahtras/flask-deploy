@@ -69,7 +69,6 @@ def install_requirements(c):
     c.sudo('apt-get install -y python3-pip')
     c.sudo('apt-get install -y python3-virtualenv')
     c.sudo('apt-get install -y nginx')
-    c.sudo('apt-get install -y gunicorn3')
     c.sudo('apt-get install -y supervisor')
     c.sudo('apt-get install -y git')
 
@@ -82,7 +81,7 @@ def install_venv(c, site):
     c.run(f"""\
 virtualenv {remote_site_dir(site)}/venv3 -p python3
 source {remote_site_dir(site)}/venv3/bin/activate
-pip install Flask
+pip install Flask flask-sslify gunicorn
 """
     )
 
