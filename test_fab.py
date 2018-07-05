@@ -36,7 +36,7 @@ class TestFab(unittest.TestCase):
         self.c.run.assert_called_once_with(f"""\
 virtualenv /www/sites/foo.bar/venv3 -p python3
 source /www/sites/foo.bar/venv3/bin/activate
-pip install Flask
+pip install Flask flask-sslify gunicorn
 """
         )
         
@@ -95,7 +95,7 @@ pip install Flask
         self.c.run.assert_has_calls([
             call("mkdir -p /www/sites/foo.bar/src"),
             call(
-                "ln -s  /www/sites/foo.bar/src/flask_app/static"
+                "ln -s  /www/sites/foo.bar/src/flask_project/static"
                 " /www/sites/foo.bar/static"
             ),
         ])

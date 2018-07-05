@@ -15,7 +15,7 @@ server {{
 
 SUPERVISOR = """\
 [program:{program}]
-command = gunicorn3 {module}:{app} -b localhost:8000
+command = gunicorn {module}:{app} -b localhost:8000
 directory = /home/www/sites/{site}/src
 user = {user}
 """

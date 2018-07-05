@@ -54,7 +54,7 @@ def test_site_supervisor(c):
     m().write.assert_called_with(
 """\
 [program:foo.bar]
-command = gunicorn3 baz:bla -b localhost:8000
+command = gunicorn baz:bla -b localhost:8000
 directory = /home/www/sites/foo.bar/src
 user = www
 """
