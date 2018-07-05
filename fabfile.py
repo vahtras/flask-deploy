@@ -92,7 +92,6 @@ def configure_git(c, site):
     1. Setup bare Git repo
     2. Create post-receive hook
     """
-    #create_git_root(c, site)
 
     remote = remote_git_dir(site)
     if exists(c, remote):
@@ -106,25 +105,6 @@ def configure_git(c, site):
             f' git checkout -f" > {remote}/hooks/post-receive' 
         )
         c.run(f'chmod +x {remote_git_dir(site)}/hooks/post-receive')
-
-@task
-def create_git_root(c):
-    """
-    Create remote git root directory
-    """
-    if not exists(c, REMOTE_GIT_DIR):
-        c.sudo(f'mkdir -p {REMOTE_GIT_DIR}')
-        c.sudo(f'chown {user}:{user} {REMOTE_GIT_DIR}')
-
-@task
-def create_git_root(c):
-    """
-    Create remote git root directory
-    """
-    if not exists(c, REMOTE_GIT_DIR):
-        c.sudo(f'mkdir -p {REMOTE_GIT_DIR}')
-        c.sudo(f'chown {user}:{user} {REMOTE_GIT_DIR}')
-
 
 #########
 # flask #
@@ -144,15 +124,16 @@ def install_flask(c, site):
         print(f'{remote_flask_dir(site)} exists')
     else:
         c.run(f'mkdir -p {remote_flask_dir(site)}')
-        with c.cd(remote_site_dir(site)):
-            c.run('''virtualenv venv3 -p python3
-source venv3/bin/activate
-pip install Flask
-'''
-            )
-
-        with c.cd(remote_git_dir(site)):
-            c.run(f"GIT_WORK_TREE={remote_flask_dir(site)} git checkout -f")
+        install_venv(c, site)
+#        with c.cd(remote_site_dir(site)):
+#            c.run('''virtualenv venv3 -p python3
+#source venv3/bin/activate
+#pip install Flask
+#'''
+##            )
+#
+#        with c.cd(remote_git_dir(site)):
+#            c.run(f"GIT_WORK_TREE={remote_flask_dir(site)} git checkout -f")
 @task
 def install_root(c):
     """

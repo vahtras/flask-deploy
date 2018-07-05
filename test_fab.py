@@ -112,12 +112,6 @@ pip install Flask
             install_flask(self.c, 'foo.bar')
         self.c.run.assert_has_calls([
             call("mkdir -p /www/sites/foo.bar/src"),
-            call("""\
-virtualenv venv3 -p python3
-source venv3/bin/activate
-pip install Flask
-"""
-            ),
         ])
 
     def test_remote_flask_dir(self, *args):
