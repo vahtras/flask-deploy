@@ -295,15 +295,26 @@ pip install Flask
         with patch('fabfile.subprocess.run') as fsr:
             add_remote(self.c, 'foo.bar')
         fsr.assert_called_once_with(
-            'git remote add foo.bar whom@foo.bar:/www/sites/foo.bar/git'
+            'git remote add foo.bar whom@foo.bar:/www/sites/foo.bar/git',
+            shell=True
+        )
+
+    def test_add_remote_other(self, *args):
+        with patch('fabfile.subprocess.run') as fsr:
+            add_remote(self.c, 'foo.bar', 'test.site')
+        fsr.assert_called_once_with(
+            'git remote add foo.bar whom@test.site:/www/sites/foo.bar/git',
+            shell=True
         )
 
     def test_push_remote(self, *args):
         with patch('fabfile.subprocess.run') as fsr:
             push_remote(self.c, 'foo.bar')
         fsr.assert_called_once_with(
-            'git push foo.bar master:master'
+            'git push foo.bar master:master',
+            shell=True
         )
+
 #
 # save
 #        self.c.local.assert_has_calls([

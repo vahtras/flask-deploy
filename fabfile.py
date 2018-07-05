@@ -361,11 +361,14 @@ def add_remote(c, site, test_site=None):
     """
     if test_site is None:
         test_site = site
-    subprocess.run(f'git remote add {site} {user}@{test_site}:{remote_git_dir(test_site)}')
+    subprocess.run(
+        f'git remote add {site} {user}@{test_site}:{remote_git_dir(site)}',
+        shell=True
+        )
 
 @task
 def push_remote(c, site):
     """
     Push to  remote repo
     """
-    subprocess.run(f'git push {site} master:master')
+    subprocess.run(f'git push {site} master:master', shell=True)
