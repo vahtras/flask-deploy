@@ -3,6 +3,7 @@
 ###############
 
 import os
+import subprocess
 from invoke import task
 from patchwork.files import exists
 
@@ -10,22 +11,19 @@ from patchwork.files import exists
 ### config ###
 ##############
 
-def local_config_dir(proj, staging):
-    if staging:
-        return './config/staging'
-    else:
-        return './config/production'
-
-REMOTE_WWW_DIR = '/home/www'
-REMOTE_GIT_DIR = '/home/git'
+REMOTE_ROOT = '/home/www'
 REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
 REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
+SERVER_IP ="127.0.0.1"
 
-def remote_flask_dir(proj, staging=""):
-    remote = '%s/%s' % (REMOTE_WWW_DIR, proj)
-    if staging:
-        remote += "-" + staging
-    return remote
+def remote_site_dir(site):
+    return f'{REMOTE_ROOT}/sites/{site}'
+
+def remote_git_dir(site):
+    return f'{REMOTE_ROOT}/sites/{site}/git'
+
+def remote_flask_dir(site):
+    return f'{REMOTE_ROOT}/sites/{site}/src'
 
 user = 'olav'
 
@@ -36,6 +34,25 @@ user = 'olav'
 @task
 def hello(c):
     c.run('echo "Hello world!"')
+
+###########
+# install #
+###########
+
+@task
+def create(c, site, module='flask_project', app='app'):
+    """
+    Install a deployment from scratch
+    """
+    install_requirements(c)
+    configure_git(c, site)
+    install_flask(c, site)
+    push_remote(c, site)
+    generate_site_nginx(c, site)
+    configure_nginx(c, site)
+    generate_site_supervisor(c, site, module, app)
+    configure_supervisor(c, site)
+    #start
 
 @task
 def install_requirements(c):
@@ -52,26 +69,52 @@ def install_requirements(c):
     c.sudo('apt-get install -y python3-pip')
     c.sudo('apt-get install -y python3-virtualenv')
     c.sudo('apt-get install -y nginx')
-    c.sudo('apt-get install -y gunicorn3')
     c.sudo('apt-get install -y supervisor')
     c.sudo('apt-get install -y git')
 
+@task
+def install_site_dir(c, site):
+    c.run(f'mkdir -p {remote_site_dir(site)}')
 
 @task
-def install_www(c):
-    """
-    Install root www directory
+def install_venv(c, site):
+    c.run(f"""\
+virtualenv {remote_site_dir(site)}/venv3 -p python3
+source {remote_site_dir(site)}/venv3/bin/activate
+pip install Flask flask-sslify gunicorn
+"""
+    )
 
-    Here: /home/www
+#######
+# git #
+#######
+
+@task
+def configure_git(c, site):
     """
-    if exists(c, REMOTE_WWW_DIR):
-        print(REMOTE_WWW_DIR)
+    1. Setup bare Git repo
+    2. Create post-receive hook
+    """
+
+    remote = remote_git_dir(site)
+    if exists(c, remote):
+        print(remote)
     else:
-        c.sudo('mkdir ' + REMOTE_WWW_DIR)
-        c.sudo('chown {u}:{u} {d}'.format(u=user, d=REMOTE_WWW_DIR))
+        print("Creating: " + remote)
+        c.run(f'git init --bare {remote}')
+        c.run(
+            'echo "#!/bin/sh\n' 
+            f'GIT_WORK_TREE={remote_flask_dir(site)}'
+            f' git checkout -f" > {remote}/hooks/post-receive' 
+        )
+        c.run(f'chmod +x {remote_git_dir(site)}/hooks/post-receive')
+
+#########
+# flask #
+#########
 
 @task
-def install_flask(c, proj="proj", staging=""):
+def install_flask(c, site, module='flask_project', app='app'):
     """
     Install Flask project
 
@@ -80,29 +123,38 @@ def install_flask(c, proj="proj", staging=""):
     3. Checkout from previously configured git repo
     """
 
-    install_www(c)
-
-    if exists(c, remote_flask_dir(proj, staging)):
-        print(remote_flask_dir(proj, staging))
+    if exists(c, remote_flask_dir(site)):
+        print(f'{remote_flask_dir(site)} exists')
     else:
-        c.run(f'mkdir -p {remote_flask_dir(proj, staging)}')
-        with c.cd(remote_flask_dir(proj, staging)):
-            c.run('''virtualenv venv3 -p python3
-source venv3/bin/activate
-pip install Flask
-'''
-            )
-        url = f"{user}@104.200.38.58:{remote_flask_dir(proj, staging)}.git"
-        repo = "production"
-        if staging:
-            repo = "staging"
-        c.local(f'git remote get-url {repo} || git remote add {repo} {url}')
-        c.local(f'git push {repo} master')
-        with c.cd(remote_git_dir(proj, staging)):
-            c.run(f"GIT_WORK_TREE={remote_flask_dir(proj, staging)} git checkout -f")
+        c.run(f'mkdir -p {remote_flask_dir(site)}')
+        c.run(f'ln -s  {remote_flask_dir(site)}/{module}/static {remote_site_dir(site)}/static')
+        install_venv(c, site)
+#        with c.cd(remote_site_dir(site)):
+#            c.run('''virtualenv venv3 -p python3
+#source venv3/bin/activate
+#pip install Flask
+#'''
+##            )
+#
+#        with c.cd(remote_git_dir(site)):
+#            c.run(f"GIT_WORK_TREE={remote_flask_dir(site)} git checkout -f")
+@task
+def install_root(c):
+    """
+    Install root install directory
+    """
+    if exists(c, REMOTE_ROOT):
+        print(REMOTE_ROOT)
+    else:
+        c.sudo(f'mkdir -p {REMOTE_ROOT}')
+        c.sudo(f'chown {user}:{user} {REMOTE_ROOT}')
+
+#########
+# nginx #
+#########
 
 @task
-def configure_nginx(c, proj, staging=""):
+def configure_nginx(c, site):
     """
     Configure nginx 
 
@@ -113,34 +165,46 @@ def configure_nginx(c, proj, staging=""):
     5. Restart nginx
     """
     c.sudo('/etc/init.d/nginx start')
+
+    disable_nginx_default(c)
+
+    enabled = f'/etc/nginx/sites-enabled/{site}'
+    available = f'/etc/nginx/sites-available/{site}'
+
+    if exists(c, enabled) is False:
+        c.sudo(f'touch {available}')
+        c.sudo(f'ln -s {available} {enabled}')
+
+    scp(c, f'./sites/{site}{available}', available)
+    c.sudo('/etc/init.d/nginx restart')
+    
+
+@task
+def disable_nginx_default(c):
     if exists(c,'/etc/nginx/sites-enabled/default'):
         c.sudo('rm /etc/nginx/sites-enabled/default')
 
-    enabled = '/etc/nginx/sites-enabled/%s' % conf_name(proj, staging)
-    available = '/etc/nginx/sites-available/%s' % conf_name(proj, staging)
-    if exists(c, enabled) is False:
-        c.sudo('touch %s' % available)
-        c.sudo('ln -s %s %s' % (available, enabled))
-
-    config = local_config_dir(proj, staging)
-
-    with c.cd(REMOTE_NGINX_DIR):
-        conffile = proj
-        if staging:
-            conffile = "-".join([proj, staging])
-        c.put(config + '/' + conffile, f'/tmp/{conffile}')
-    c.sudo(f"mv /tmp/{conffile} {available}")
-    c.sudo('/etc/init.d/nginx restart')
-
-def conf_name(proj, staging=""):
-    """Generate production/staging configuration names"""
-    if staging:
-        return "-".join((proj ,staging))
-    else:
-        return proj
+@task
+def enable_link(c, site):
+    enabled = f'/etc/nginx/sites-enabled/{site}'
+    available = f'/etc/nginx/sites-available/{site}'
+    c.sudo(f'touch {available}')
+    c.sudo(f'ln -s {available} {enabled}')
 
 @task
-def configure_supervisor(c, proj, staging=""):
+def scp(c, source, target):
+    dir_, file_ = os.path.split(target)
+    c.put(source, f'/tmp/{file_}')
+    c.sudo(f'mv /tmp/{file_} {target}')
+    
+    
+
+##############
+# supervisor #
+##############
+
+@task
+def configure_supervisor(c, site):
     """
     Configure supervisor for nginx
 
@@ -149,55 +213,36 @@ def configure_supervisor(c, proj, staging=""):
     3. Register new command
     """
             
-    if exists(c,'/etc/supervisor/conf.d/%s.conf' % conf_name(proj, staging)) is False:
-        conffile = "%s.conf" % proj
-        if staging:
-            conffile =  "-".join([proj, staging]) + ".conf"
-        c.put(local_config_dir(proj, staging)+'/'+conffile,  '/tmp/' + conffile)
-        c.sudo(f'mv /tmp/{conffile} /etc/supervisor/conf.d/{conffile}')
+    if exists(c,f'/etc/supervisor/conf.d/{site}.conf') is False:
+        c.put(
+            f'./sites/{site}/etc/supervisor/conf.d/{site}.conf',
+            f'/tmp/{site}.conf'
+        )
+        c.sudo(f'mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf')
         c.sudo('supervisorctl reread')
         c.sudo('supervisorctl update')
 
-
-@task
-def configure_git(c, proj, staging=""):
-    """
-    1. Setup bare Git repo
-    2. Create post-receive hook
-    """
-    if exists(c, REMOTE_GIT_DIR):
-        print(REMOTE_GIT_DIR)
-    else:
-        print("Creating: " + REMOTE_GIT_DIR)
-        c.sudo('mkdir ' + REMOTE_GIT_DIR)
-        c.sudo('chown {u}:{u} {d}'.format(u=user, d=REMOTE_GIT_DIR))
-
-    if exists(c, remote_git_dir(proj, staging)):
-        print(remote_git_dir(proj, staging))
-    else:
-        print("Creating: " + remote_git_dir(proj, staging))
-        c.run('git init --bare %s' % remote_git_dir(proj, staging))
-        c.run(
-            'echo "#!/bin/sh\n' +
-            'GIT_WORK_TREE=/home/www/%s git checkout -f" > %s/hooks/post-receive' 
-            %  (conf_name(proj, staging), remote_git_dir(proj, staging))
-        )
-        c.run(f'chmod +x {remote_git_dir(proj, staging)}/hooks/post-receive')
-
-def remote_git_dir(proj, staging=""):
-    return os.path.join(REMOTE_GIT_DIR, conf_name(proj, staging)) + ".git"
     
 
 @task
-def run_app(c, proj, staging=""):
+def run_app(c, site):
     """ Run the app! """
-    c.sudo('supervisorctl start %s' % conf_name(proj, staging))
+    c.sudo(f'supervisorctl start {site}')
 
 @task
-def stop_app(c, proj, staging=""):
+def stop_app(c, site):
     """ Stop the app! """
-    c.sudo('supervisorctl stop %s' % conf_name(proj, staging))
+    c.sudo(f'supervisorctl stop {site}')
 
+@task
+def restart(c, site):
+        stop_app(c, site)
+        run_app(c, site)
+
+@task
+def status(c):
+    """ Is our app live? """
+    c.sudo('supervisorctl status')
 
 @task
 def deploy(c, app, repo='production'):
@@ -211,55 +256,30 @@ def deploy(c, app, repo='production'):
     local('git push %s master' % repo)
     sudo('supervisorctl restart %s' % app)
 
-@task
-def restart(c, proj, staging=""):
-        stop_app(c, proj, staging)
-        run_app(c, proj, staging)
 
 
 @task
-def rollback(c, proj, staging=''):
+def rollback(c, site):
     """
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    repo = {"": "production"}
-    if staging:
-        repo[staging] = staging
-    c.local('git revert master --no-edit')
-    c.local('git push %s master' % repo[staging])
-    c.sudo('supervisorctl restart %s' % conf_name(proj, staging))
+    c.local(f'git revert master --no-edit')
+    c.local(f'git push {site} master')
+    c.sudo(f'supervisorctl restart {site}')
 
 
 @task
-def status(c):
-    """ Is our app live? """
-    c.sudo('supervisorctl status')
-
-
-@task
-def create(c, proj, staging=""):
-    """
-    Install a deployment from scratch
-    """
-    install_requirements(c)
-    configure_git(c, proj, staging)
-    install_flask(c, proj, staging)
-    configure_nginx(c, proj, staging)
-    configure_supervisor(c, proj, staging)
-
-@task
-def clean(c, proj, staging=""):
+def clean(c, site):
     """
     Clear a configuration from server
     """
-    proj_ = conf_name(proj, staging)
-    stop_app(c, proj, staging)
-    c.sudo('rm -rf %s/%s' % (REMOTE_WWW_DIR, proj_))
-    c.sudo('rm -rf %s/%s' % (REMOTE_GIT_DIR, proj_))
-    c.sudo('rm -f /etc/supervisor/conf.d/%s.conf' % proj_)
-    c.sudo('rm -f /etc/nginx/sites-available/%s' % proj_)
-    c.sudo('rm -f /etc/nginx/sites-enabled/%s' % proj_)
+    stop_app(c, site)
+    c.sudo(f'rm -rf {remote_site_dir(site)}')
+    c.sudo(f'rm -f /etc/supervisor/conf.d/{site}.conf')
+    c.sudo(f'rm -f /etc/nginx/sites-available/{site}')
+    c.sudo(f'rm -f /etc/nginx/sites-enabled/{site}')
+
 def self_signed_cert():
     local("openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 ")
 
@@ -278,3 +298,63 @@ def install_cert(c):
     Generate and install letsencrypt cert
     """
     c.sudo('certbot --nginx')
+
+@task
+def generate_site_nginx(c, site):
+    """
+    Generate configuration files for nginx
+    """
+    from template import NGINX
+    #c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
+    try:
+        os.makedirs(f'sites/{site}/etc/nginx/sites-available')
+    except FileExistsError:
+        pass
+    with open(f'sites/{site}/etc/nginx/sites-available/{site}', 'w') as f:
+        f.write(NGINX.format(server_name=site, root=REMOTE_ROOT))
+        
+
+@task
+def generate_site_supervisor(c, site, module='flask_project', app='app'):
+    """
+    Generate configuration files for supervisor/gunicorn
+    """
+    from template import SUPERVISOR
+
+    try:
+        os.makedirs(f'sites/{site}/etc/supervisor/conf.d')
+    except FileExistsError:
+        pass
+
+    with open(f'sites/{site}/etc/supervisor/conf.d/{site}.conf', 'w') as f:
+        f.write(SUPERVISOR.format(
+            program=site,
+            bin=f'{remote_site_dir(site)}/venv3/bin',
+            module=module,
+            app=app,
+            site_dir=remote_site_dir(site),
+            root=REMOTE_ROOT,
+            user=user,
+            )
+        )
+
+####
+
+@task
+def add_remote(c, site, test_site=None):
+    """
+    Define remote repo for site to track
+    """
+    if test_site is None:
+        test_site = site
+    subprocess.run(
+        f'git remote add {site} {user}@{test_site}:{remote_git_dir(site)}',
+        shell=True
+        )
+
+@task
+def push_remote(c, site):
+    """
+    Push to  remote repo
+    """
+    subprocess.run(f'git push {site} master:master', shell=True)
