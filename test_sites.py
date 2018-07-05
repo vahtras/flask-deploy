@@ -6,7 +6,7 @@ from fabfile import *
 def c():
     return MagicMock()
 
-@patch('fabfile.REMOTE_WWW_DIR', '/www')
+@patch('fabfile.REMOTE_ROOT', '/www')
 @patch('invoke.tasks.isinstance') # necessary for mocking
 def test_site_nginx(c):
     m = mock_open()
@@ -37,7 +37,7 @@ server {
     )
 
 
-@patch('fabfile.REMOTE_WWW_DIR', '/www')
+@patch('fabfile.REMOTE_ROOT', '/www')
 @patch('fabfile.user', 'www')
 @patch('invoke.tasks.isinstance') # necessary for mocking
 def test_site_supervisor(c):
