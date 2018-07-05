@@ -47,7 +47,7 @@ def test_site_supervisor(c):
             generate_site_supervisor(c, 'foo.bar', 'baz', 'bla')
     mk.assert_called_once_with('sites/foo.bar/etc/supervisor/conf.d')
     m.assert_called_once_with(
-        'sites/foo.bar/etc/supervisor/conf.d/foo.bar',
+        'sites/foo.bar/etc/supervisor/conf.d/foo.bar.conf',
         'w'
     )
     m().write.assert_called_with(

@@ -322,7 +322,7 @@ def generate_site_supervisor(c, site, module, app):
     except FileExistsError:
         pass
 
-    with open(f'sites/{site}/etc/supervisor/conf.d/{site}', 'w') as f:
+    with open(f'sites/{site}/etc/supervisor/conf.d/{site}.conf', 'w') as f:
         f.write(SUPERVISOR.format(
             program=site,
             module=module,
