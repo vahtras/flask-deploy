@@ -54,6 +54,7 @@ def create(c, site, module='flask_project', app='app'):
     generate_site_supervisor(c, site, module, app)
     configure_supervisor(c, site)
     #start
+    #run_app(c, site)
 
 @task
 def install_requirements(c):
