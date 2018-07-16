@@ -47,6 +47,7 @@ def create(c, site, module='flask_project', app='app'):
     install_requirements(c)
     configure_git(c, site)
     install_flask(c, site)
+    add_remote(c, site)
     push_remote(c, site)
     generate_site_nginx(c, site)
     configure_nginx(c, site)
@@ -78,10 +79,11 @@ def install_site_dir(c, site):
 
 @task
 def install_venv(c, site):
+    c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
     c.run(f"""\
 virtualenv {remote_site_dir(site)}/venv3 -p python3
 source {remote_site_dir(site)}/venv3/bin/activate
-pip install Flask flask-sslify gunicorn
+pip install -r {remote_site_dir(site)}/requirements.txt
 """
     )
 
@@ -129,15 +131,6 @@ def install_flask(c, site, module='flask_project', app='app'):
         c.run(f'mkdir -p {remote_flask_dir(site)}')
         c.run(f'ln -s  {remote_flask_dir(site)}/{module}/static {remote_site_dir(site)}/static')
         install_venv(c, site)
-#        with c.cd(remote_site_dir(site)):
-#            c.run('''virtualenv venv3 -p python3
-#source venv3/bin/activate
-#pip install Flask
-#'''
-##            )
-#
-#        with c.cd(remote_git_dir(site)):
-#            c.run(f"GIT_WORK_TREE={remote_flask_dir(site)} git checkout -f")
 @task
 def install_root(c):
     """
