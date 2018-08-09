@@ -46,7 +46,7 @@ def create(c, site, module='flask_project', app='app'):
     """
     install_requirements(c)
     configure_git(c, site)
-    install_flask(c, site)
+    install_flask(c, site, module, app)
     add_remote(c, site)
     push_remote(c, site)
     generate_site_nginx(c, site)
@@ -352,3 +352,12 @@ def push_remote(c, site):
     Push to  remote repo
     """
     subprocess.run(f'git push {site} master:master', shell=True)
+
+@task
+def remote_env_cmd(c, env, cmd):
+    c.run(f'{env} {cmd}')
+
+@task
+def remote_env_sudo(c, env, cmd):
+    c.sudo(f'{env} {cmd}')
+    

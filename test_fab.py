@@ -295,10 +295,13 @@ pip install -r /www/sites/foo.bar/requirements.txt
             shell=True
         )
 
-#
-# save
-#        self.c.local.assert_has_calls([
-#            call("git remote get-url production || \
-#git remote add production whom@123.456.789.00:/www/sites/foo.bar.git"),
-#            call("git push production master"),
-#        ])
+### env
+
+    def test_env_cmd(self, *args):
+        remote_env_cmd(self.c, "FOO=BAR", "printenv FOO")
+        self.c.run.assert_called_once_with('FOO=BAR printenv FOO')
+
+    def test_env_sudo(self, *args):
+        remote_env_sudo(self.c, "FOO=BAR", "printenv FOO")
+        self.c.sudo.assert_called_once_with('FOO=BAR printenv FOO')
+        
