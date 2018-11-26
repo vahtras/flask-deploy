@@ -59,3 +59,17 @@ directory = /www/sites/foo.bar/src
 user = www
 """
     )
+
+#######
+# git #
+#######
+@patch('fabfile.REMOTE_ROOT', '/www')
+@patch('invoke.tasks.isinstance') # necessary for mocking
+def test_configure_git2(c):
+    with patch('fabfile.exists') as mock_exists:
+        with patch('fabfile.print') as mock_print:
+            mock_exists.return_value = True
+            configure_git(c, 'foo.bar')
+    mock_print.assert_called_once_with('/www/sites/foo.bar/git already exists')
+    
+        

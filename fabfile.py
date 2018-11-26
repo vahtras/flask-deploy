@@ -44,17 +44,20 @@ def create(c, site, module='flask_project', app='app'):
     """
     Install a deployment from scratch
     """
-    install_requirements(c)
+    #install_requirements(c)
     configure_git(c, site)
-    install_flask(c, site, module, app)
+    install_flask(c, site, app)
     add_remote(c, site)
     push_remote(c, site)
     generate_site_nginx(c, site)
     configure_nginx(c, site)
     generate_site_supervisor(c, site, module, app)
     configure_supervisor(c, site)
-    #start
-    #run_app(c, site)
+    # start webserver
+    start_app(c, site)
+    # install certificate from Let's Encrypt
+    install_cert(c)
+    
 
 @task
 def install_requirements(c):
@@ -73,6 +76,7 @@ def install_requirements(c):
     c.sudo('apt-get install -y nginx')
     c.sudo('apt-get install -y supervisor')
     c.sudo('apt-get install -y git')
+    c.sudo('apt-get install python-certbot-nginx')
 
 @task
 def install_site_dir(c, site):
@@ -101,7 +105,7 @@ def configure_git(c, site):
 
     remote = remote_git_dir(site)
     if exists(c, remote):
-        print(remote)
+        print(f'{remote} already exists')
     else:
         print("Creating: " + remote)
         c.run(f'git init --bare {remote}')
@@ -117,7 +121,7 @@ def configure_git(c, site):
 #########
 
 @task
-def install_flask(c, site, module='flask_project', app='app'):
+def install_flask(c, site, package='app'):
     """
     Install Flask project
 
@@ -130,7 +134,7 @@ def install_flask(c, site, module='flask_project', app='app'):
         print(f'{remote_flask_dir(site)} exists')
     else:
         c.run(f'mkdir -p {remote_flask_dir(site)}')
-        c.run(f'ln -s  {remote_flask_dir(site)}/{module}/static {remote_site_dir(site)}/static')
+        c.run(f'ln -sf  {remote_flask_dir(site)}/{package}/static {remote_site_dir(site)}/static')
         install_venv(c, site)
 @task
 def install_root(c):
@@ -179,6 +183,10 @@ def disable_nginx_default(c):
         c.sudo('rm /etc/nginx/sites-enabled/default')
 
 @task
+def restart_nginx(c):
+    c.sudo('/etc/init.d/nginx restart')
+
+@task
 def enable_link(c, site):
     enabled = f'/etc/nginx/sites-enabled/{site}'
     available = f'/etc/nginx/sites-available/{site}'
@@ -215,11 +223,17 @@ def configure_supervisor(c, site):
         c.sudo(f'mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf')
         c.sudo('supervisorctl reread')
         c.sudo('supervisorctl update')
+    else:
+        print(f'/etc/supervisor/conf.d/{site}.conf already exists')
 
+@task
+def reload_supervisor(c, site):
+        c.sudo('supervisorctl reread')
+        c.sudo('supervisorctl update')
     
 
 @task
-def run_app(c, site):
+def start_app(c, site):
     """ Run the app! """
     c.sudo(f'supervisorctl start {site}')
 
@@ -229,9 +243,9 @@ def stop_app(c, site):
     c.sudo(f'supervisorctl stop {site}')
 
 @task
-def restart(c, site):
+def restart_app(c, site):
         stop_app(c, site)
-        run_app(c, site)
+        start_app(c, site)
 
 @task
 def status(c):

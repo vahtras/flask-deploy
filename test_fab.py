@@ -44,16 +44,24 @@ pip install -r /www/sites/foo.bar/requirements.txt
 # git #    
 #######
 
-    def test_configure_git(self, *args):
+    def test_configure_git_exists(self, *args):
         exists, _ = args
         exists.side_effect = [True, True]
 
-        configure_git(self.c, 'foo.bar')
+        with patch('fabfile.exists') as mock_exists:
+            with patch('fabfile.print') as mock_print:
+                mock_exists.return_value = True
+                configure_git(self.c, 'foo.bar')
 
+        mock_print.assert_called_once_with(
+            '/www/sites/foo.bar/git already exists'
+        )
         self.c.sudo.assert_not_called()
         self.c.cd.assert_not_called()
         self.c.run.assert_not_called()
         
+    def test_configure_git_new(self, *args):
+        exists, _ = args
         exists.side_effect = [False, False]
 
         configure_git(self.c, 'foo.bar')
@@ -95,7 +103,7 @@ pip install -r /www/sites/foo.bar/requirements.txt
         self.c.run.assert_has_calls([
             call("mkdir -p /www/sites/foo.bar/src"),
             call(
-                "ln -s  /www/sites/foo.bar/src/flask_project/static"
+                "ln -sf  /www/sites/foo.bar/src/app/static"
                 " /www/sites/foo.bar/static"
             ),
         ])
@@ -202,7 +210,7 @@ pip install -r /www/sites/foo.bar/requirements.txt
 
     def test_run(self, *args):
 
-        run_app(self.c, 'foo.bar')
+        start_app(self.c, 'foo.bar')
         self.c.sudo.assert_called_once_with('supervisorctl start foo.bar')
 
     def test_stop(self, *args):
@@ -219,9 +227,9 @@ pip install -r /www/sites/foo.bar/requirements.txt
 ##########
 
     def test_deploy(self, *args):
-        with patch('fabfile.run_app') as mrun:
+        with patch('fabfile.start_app') as mrun:
             with patch('fabfile.stop_app') as mstop:
-                restart(self.c, 'foo.bar')
+                restart_app(self.c, 'foo.bar')
         mrun.assert_called_once_with(self.c, 'foo.bar')
         mstop.assert_called_once_with(self.c, 'foo.bar')
 
