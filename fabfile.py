@@ -355,10 +355,13 @@ def add_remote(c, site, test_site=None):
     """
     if test_site is None:
         test_site = site
-    subprocess.run(
-        f'git remote add {site} {user}@{test_site}:{remote_git_dir(site)}',
-        shell=True
-        )
+    try:
+        subprocess.run(
+            f'git remote add {site} {user}@{test_site}:{remote_git_dir(site)}',
+            shell=True, check=True
+            )
+    except subprocess.CalledProcessError:
+        print(f'Remote repository {site} exists')
 
 @task
 def push_remote(c, site):

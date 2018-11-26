@@ -78,6 +78,37 @@ pip install -r /www/sites/foo.bar/requirements.txt
     def test_remote_git_dir(self, *args):
         assert remote_git_dir('foo.bar')  == '/www/sites/foo.bar/git'
 
+    def test_add_remote(self, *args):
+        with patch('fabfile.subprocess.run') as fsr:
+            add_remote(self.c, 'foo.bar')
+        fsr.assert_called_once_with(
+            'git remote add foo.bar whom@foo.bar:/www/sites/foo.bar/git',
+            shell=True, check=True
+        )
+
+    def test_add_existing_remote(self, *args):
+        with patch('fabfile.subprocess.run') as fsr:
+            fsr.side_effect = subprocess.CalledProcessError(1, 'yo')
+            with patch('fabfile.print') as fp:
+                add_remote(self.c, 'foo.bar')
+        fp.assert_called_once_with('Remote repository foo.bar exists')
+
+    def test_add_remote_other(self, *args):
+        with patch('fabfile.subprocess.run') as fsr:
+            add_remote(self.c, 'foo.bar', 'test.site')
+        fsr.assert_called_once_with(
+            'git remote add foo.bar whom@test.site:/www/sites/foo.bar/git',
+            shell=True, check=True
+        )
+
+    def test_push_remote(self, *args):
+        with patch('fabfile.subprocess.run') as fsr:
+            push_remote(self.c, 'foo.bar')
+        fsr.assert_called_once_with(
+            'git push foo.bar master:master',
+            shell=True
+        )
+
 #########
 # flask #
 #########
@@ -279,29 +310,6 @@ pip install -r /www/sites/foo.bar/requirements.txt
             call('rm -f /etc/nginx/sites-enabled/foo.bar'),
         ])
 
-    def test_add_remote(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
-            add_remote(self.c, 'foo.bar')
-        fsr.assert_called_once_with(
-            'git remote add foo.bar whom@foo.bar:/www/sites/foo.bar/git',
-            shell=True
-        )
-
-    def test_add_remote_other(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
-            add_remote(self.c, 'foo.bar', 'test.site')
-        fsr.assert_called_once_with(
-            'git remote add foo.bar whom@test.site:/www/sites/foo.bar/git',
-            shell=True
-        )
-
-    def test_push_remote(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
-            push_remote(self.c, 'foo.bar')
-        fsr.assert_called_once_with(
-            'git push foo.bar master:master',
-            shell=True
-        )
 
 ### env
 
