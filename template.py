@@ -3,7 +3,7 @@ NGINX = """\
 server {{
     server_name {server_name};
     location / {{
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:{port};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }}
@@ -15,7 +15,7 @@ server {{
 
 SUPERVISOR = """\
 [program:{program}]
-command = {bin}/gunicorn {module}:{app} -b localhost:8000
+command = {bin}/gunicorn {module}:{app} -b localhost:{port}
 directory = {site_dir}/src
 user = {user}
 """

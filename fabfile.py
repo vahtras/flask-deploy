@@ -40,7 +40,7 @@ def hello(c):
 ###########
 
 @task
-def create(c, site, module='flask_project', app='app'):
+def create(c, site, module='flask_project', app='app', port=8000):
     """
     Install a deployment from scratch
     """
@@ -49,7 +49,7 @@ def create(c, site, module='flask_project', app='app'):
     install_flask(c, site, app)
     add_remote(c, site)
     push_remote(c, site)
-    generate_site_nginx(c, site)
+    generate_site_nginx(c, site, port)
     configure_nginx(c, site)
     generate_site_supervisor(c, site, module, app)
     configure_supervisor(c, site)
@@ -313,7 +313,7 @@ def install_cert(c):
     c.sudo('certbot --nginx')
 
 @task
-def generate_site_nginx(c, site):
+def generate_site_nginx(c, site, port=8000):
     """
     Generate configuration files for nginx
     """
@@ -324,11 +324,11 @@ def generate_site_nginx(c, site):
     except FileExistsError:
         pass
     with open(f'sites/{site}/etc/nginx/sites-available/{site}', 'w') as f:
-        f.write(NGINX.format(server_name=site, root=REMOTE_ROOT))
+        f.write(NGINX.format(server_name=site, root=REMOTE_ROOT, port=port))
         
 
 @task
-def generate_site_supervisor(c, site, module='flask_project', app='app'):
+def generate_site_supervisor(c, site, module='flask_project', app='app', port=8000):
     """
     Generate configuration files for supervisor/gunicorn
     """
@@ -348,6 +348,7 @@ def generate_site_supervisor(c, site, module='flask_project', app='app'):
             site_dir=remote_site_dir(site),
             root=REMOTE_ROOT,
             user=user,
+            port=port,
             )
         )
 
