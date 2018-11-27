@@ -248,6 +248,11 @@ def restart_app(c, site):
         start_app(c, site)
 
 @task
+def restart_all(c, site):
+        restart_nginx(c)
+        restart_app(c, site)
+
+@task
 def status(c):
     """ Is our app live? """
     c.sudo('supervisorctl status')
