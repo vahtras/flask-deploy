@@ -25,7 +25,7 @@ def remote_git_dir(site):
 def remote_flask_dir(site):
     return f'{REMOTE_ROOT}/sites/{site}/src'
 
-user = 'olav'
+user = 'motetten'
 
 #############
 ### tasks ###
@@ -51,7 +51,7 @@ def create(c, site, module='flask_project', app='app', port=8000):
     push_remote(c, site)
     generate_site_nginx(c, site, port)
     configure_nginx(c, site)
-    generate_site_supervisor(c, site, module, app)
+    generate_site_supervisor(c, site, module, app, port)
     configure_supervisor(c, site)
     # start webserver
     start_app(c, site)
@@ -112,7 +112,7 @@ def configure_git(c, site):
         c.run(
             'echo "#!/bin/sh\n' 
             f'GIT_WORK_TREE={remote_flask_dir(site)}'
-            f' git checkout -f" > {remote}/hooks/post-receive' 
+            f' git checkout --recurse-submodules -f" > {remote}/hooks/post-receive' 
         )
         c.run(f'chmod +x {remote_git_dir(site)}/hooks/post-receive')
 
@@ -245,6 +245,7 @@ def stop_app(c, site):
 @task
 def restart_app(c, site):
         stop_app(c, site)
+        reload_supervisor(c, site)
         start_app(c, site)
 
 @task
