@@ -1,4 +1,3 @@
-import unittest
 from unittest.mock import patch, call, MagicMock
 import textwrap
 
@@ -10,9 +9,9 @@ import fabfile
 @patch('fabfile.user', 'whom')
 @patch('invoke.tasks.isinstance')  # necessary for mocking
 @patch('fabfile.exists')
-class TestFab(unittest.TestCase):
+class TestFab:
 
-    def setUp(self):
+    def setup(self):
         self.c = MagicMock()
 
     def test_hello(self, *args):
