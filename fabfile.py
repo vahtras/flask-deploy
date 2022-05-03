@@ -11,40 +11,47 @@ from patchwork.files import exists
 ### config ###
 ##############
 
-REMOTE_ROOT = '/home/www'
-REMOTE_NGINX_DIR = '/etc/nginx/sites-available'
-REMOTE_SUPERVISOR_DIR = '/etc/supervisor/conf.d'
-SERVER_IP ="127.0.0.1"
+REMOTE_ROOT = "/home/www"
+REMOTE_NGINX_DIR = "/etc/nginx/sites-available"
+REMOTE_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
+SERVER_IP = "127.0.0.1"
+
 
 def remote_site_dir(site):
-    return f'{REMOTE_ROOT}/sites/{site}'
+    return f"{REMOTE_ROOT}/sites/{site}"
+
 
 def remote_git_dir(site):
-    return f'{REMOTE_ROOT}/sites/{site}/git'
+    return f"{REMOTE_ROOT}/sites/{site}/git"
+
 
 def remote_flask_dir(site):
-    return f'{REMOTE_ROOT}/sites/{site}/src'
+    return f"{REMOTE_ROOT}/sites/{site}/src"
 
-user = 'motetten'
+
+user = "motetten"
 
 #############
 ### tasks ###
 #############
 
+
 @task
 def hello(c):
     c.run('echo "Hello world!"')
+
 
 ###########
 # install #
 ###########
 
+
 @task
-def create(c, site, module='flask_project', app='app', port=8000):
+def create(c, site, module="flask_project", app="app", port=8000):
     """
     Install a deployment from scratch
     """
-    #install_requirements(c)
+    # install_requirements(c)
     configure_git(c, site)
     install_flask(c, site, app)
     add_remote(c, site)
@@ -57,7 +64,7 @@ def create(c, site, module='flask_project', app='app', port=8000):
     start_app(c, site)
     # install certificate from Let's Encrypt
     install_cert(c)
-    
+
 
 @task
 def install_requirements(c):
@@ -69,32 +76,37 @@ def install_requirements(c):
     Supervisor
     Git
     """
-    c.sudo('apt-get update')
-    c.sudo('apt-get install -y python3')
-    c.sudo('apt-get install -y python3-pip')
-    c.sudo('apt-get install -y python3-virtualenv')
-    c.sudo('apt-get install -y nginx')
-    c.sudo('apt-get install -y supervisor')
-    c.sudo('apt-get install -y git')
-    c.sudo('apt-get install python-certbot-nginx')
+    c.sudo("apt-get update")
+    c.sudo("apt-get install -y python3")
+    c.sudo("apt-get install -y python3-pip")
+    c.sudo("apt-get install -y python3-virtualenv")
+    c.sudo("apt-get install -y nginx")
+    c.sudo("apt-get install -y supervisor")
+    c.sudo("apt-get install -y git")
+    c.sudo("apt-get install python-certbot-nginx")
+
 
 @task
 def install_site_dir(c, site):
-    c.run(f'mkdir -p {remote_site_dir(site)}')
+    c.run(f"mkdir -p {remote_site_dir(site)}")
+
 
 @task
 def install_venv(c, site):
     c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
-    c.run(f"""\
+    c.run(
+        f"""\
 virtualenv {remote_site_dir(site)}/venv3 -p python3
 source {remote_site_dir(site)}/venv3/bin/activate
 pip install -r {remote_site_dir(site)}/requirements.txt
 """
     )
 
+
 #######
 # git #
 #######
+
 
 @task
 def configure_git(c, site):
@@ -105,23 +117,25 @@ def configure_git(c, site):
 
     remote = remote_git_dir(site)
     if exists(c, remote):
-        print(f'{remote} already exists')
+        print(f"{remote} already exists")
     else:
         print("Creating: " + remote)
-        c.run(f'git init --bare {remote}')
+        c.run(f"git init --bare {remote}")
         c.run(
-            'echo "#!/bin/sh\n' 
-            f'GIT_WORK_TREE={remote_flask_dir(site)}'
-            f' git checkout --recurse-submodules -f" > {remote}/hooks/post-receive' 
+            'echo "#!/bin/sh\n'
+            f"GIT_WORK_TREE={remote_flask_dir(site)}"
+            f' git checkout --recurse-submodules -f" > {remote}/hooks/post-receive'
         )
-        c.run(f'chmod +x {remote_git_dir(site)}/hooks/post-receive')
+        c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
+
 
 #########
 # flask #
 #########
 
+
 @task
-def install_flask(c, site, package='app'):
+def install_flask(c, site, package="app"):
     """
     Install Flask project
 
@@ -131,11 +145,15 @@ def install_flask(c, site, package='app'):
     """
 
     if exists(c, remote_flask_dir(site)):
-        print(f'{remote_flask_dir(site)} exists')
+        print(f"{remote_flask_dir(site)} exists")
     else:
-        c.run(f'mkdir -p {remote_flask_dir(site)}')
-        c.run(f'ln -sf  {remote_flask_dir(site)}/{package}/static {remote_site_dir(site)}/static')
+        c.run(f"mkdir -p {remote_flask_dir(site)}")
+        c.run(
+            f"ln -sf  {remote_flask_dir(site)}/{package}/static {remote_site_dir(site)}/static"
+        )
         install_venv(c, site)
+
+
 @task
 def install_root(c):
     """
@@ -144,12 +162,14 @@ def install_root(c):
     if exists(c, REMOTE_ROOT):
         print(REMOTE_ROOT)
     else:
-        c.sudo(f'mkdir -p {REMOTE_ROOT}')
-        c.sudo(f'chown {user}:{user} {REMOTE_ROOT}')
+        c.sudo(f"mkdir -p {REMOTE_ROOT}")
+        c.sudo(f"chown {user}:{user} {REMOTE_ROOT}")
+
 
 #########
 # nginx #
 #########
+
 
 @task
 def configure_nginx(c, site):
@@ -162,48 +182,51 @@ def configure_nginx(c, site):
     4. Copy local config to remote config
     5. Restart nginx
     """
-    c.sudo('/etc/init.d/nginx start')
+    c.sudo("/etc/init.d/nginx start")
 
     disable_nginx_default(c)
 
-    enabled = f'/etc/nginx/sites-enabled/{site}'
-    available = f'/etc/nginx/sites-available/{site}'
+    enabled = f"/etc/nginx/sites-enabled/{site}"
+    available = f"/etc/nginx/sites-available/{site}"
 
     if exists(c, enabled) is False:
-        c.sudo(f'touch {available}')
-        c.sudo(f'ln -s {available} {enabled}')
+        c.sudo(f"touch {available}")
+        c.sudo(f"ln -s {available} {enabled}")
 
-    scp(c, f'./sites/{site}{available}', available)
-    c.sudo('/etc/init.d/nginx restart')
-    
+    scp(c, f"./sites/{site}{available}", available)
+    c.sudo("/etc/init.d/nginx restart")
+
 
 @task
 def disable_nginx_default(c):
-    if exists(c,'/etc/nginx/sites-enabled/default'):
-        c.sudo('rm /etc/nginx/sites-enabled/default')
+    if exists(c, "/etc/nginx/sites-enabled/default"):
+        c.sudo("rm /etc/nginx/sites-enabled/default")
+
 
 @task
 def restart_nginx(c):
-    c.sudo('/etc/init.d/nginx restart')
+    c.sudo("/etc/init.d/nginx restart")
+
 
 @task
 def enable_link(c, site):
-    enabled = f'/etc/nginx/sites-enabled/{site}'
-    available = f'/etc/nginx/sites-available/{site}'
-    c.sudo(f'touch {available}')
-    c.sudo(f'ln -s {available} {enabled}')
+    enabled = f"/etc/nginx/sites-enabled/{site}"
+    available = f"/etc/nginx/sites-available/{site}"
+    c.sudo(f"touch {available}")
+    c.sudo(f"ln -s {available} {enabled}")
+
 
 @task
 def scp(c, source, target):
     dir_, file_ = os.path.split(target)
-    c.put(source, f'/tmp/{file_}')
-    c.sudo(f'mv /tmp/{file_} {target}')
-    
-    
+    c.put(source, f"/tmp/{file_}")
+    c.sudo(f"mv /tmp/{file_} {target}")
+
 
 ##############
 # supervisor #
 ##############
+
 
 @task
 def configure_supervisor(c, site):
@@ -214,62 +237,64 @@ def configure_supervisor(c, site):
     2. Copy local config to remote config
     3. Register new command
     """
-            
-    if exists(c,f'/etc/supervisor/conf.d/{site}.conf') is False:
-        c.put(
-            f'./sites/{site}/etc/supervisor/conf.d/{site}.conf',
-            f'/tmp/{site}.conf'
-        )
-        c.sudo(f'mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf')
-        c.sudo('supervisorctl reread')
-        c.sudo('supervisorctl update')
+
+    if exists(c, f"/etc/supervisor/conf.d/{site}.conf") is False:
+        c.put(f"./sites/{site}/etc/supervisor/conf.d/{site}.conf", f"/tmp/{site}.conf")
+        c.sudo(f"mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf")
+        c.sudo("supervisorctl reread")
+        c.sudo("supervisorctl update")
     else:
-        print(f'/etc/supervisor/conf.d/{site}.conf already exists')
+        print(f"/etc/supervisor/conf.d/{site}.conf already exists")
+
 
 @task
 def reload_supervisor(c, site):
-        c.sudo('supervisorctl reread')
-        c.sudo('supervisorctl update')
-    
+    c.sudo("supervisorctl reread")
+    c.sudo("supervisorctl update")
+
 
 @task
 def start_app(c, site):
     """ Run the app! """
-    c.sudo(f'supervisorctl start {site}')
+    c.sudo(f"supervisorctl start {site}")
+
 
 @task
 def stop_app(c, site):
     """ Stop the app! """
-    c.sudo(f'supervisorctl stop {site}')
+    c.sudo(f"supervisorctl stop {site}")
+
 
 @task
 def restart_app(c, site):
-        stop_app(c, site)
-        reload_supervisor(c, site)
-        start_app(c, site)
+    stop_app(c, site)
+    reload_supervisor(c, site)
+    start_app(c, site)
+
 
 @task
 def restart_all(c, site):
-        restart_nginx(c)
-        restart_app(c, site)
+    restart_nginx(c)
+    restart_app(c, site)
+
 
 @task
 def status(c):
     """ Is our app live? """
-    c.sudo('supervisorctl status')
+    c.sudo("supervisorctl status")
+
 
 @task
-def deploy(c, app, repo='production'):
+def deploy(c, app, repo="production"):
     """
     1. Copy new Flask files
     2. Restart gunicorn via supervisor
     """
-    local('git add -A')
+    local("git add -A")
     commit_message = prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
-    local('git push %s master' % repo)
-    sudo('supervisorctl restart %s' % app)
-
+    local("git push %s master" % repo)
+    sudo("supervisorctl restart %s" % app)
 
 
 @task
@@ -278,9 +303,9 @@ def rollback(c, site):
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    c.local(f'git revert master --no-edit')
-    c.local(f'git push {site} master')
-    c.sudo(f'supervisorctl restart {site}')
+    c.local(f"git revert master --no-edit")
+    c.local(f"git push {site} master")
+    c.sudo(f"supervisorctl restart {site}")
 
 
 @task
@@ -289,13 +314,16 @@ def clean(c, site):
     Clear a configuration from server
     """
     stop_app(c, site)
-    c.sudo(f'rm -rf {remote_site_dir(site)}')
-    c.sudo(f'rm -f /etc/supervisor/conf.d/{site}.conf')
-    c.sudo(f'rm -f /etc/nginx/sites-available/{site}')
-    c.sudo(f'rm -f /etc/nginx/sites-enabled/{site}')
+    c.sudo(f"rm -rf {remote_site_dir(site)}")
+    c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
+    c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
+    c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
+
 
 def self_signed_cert():
-    local("openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 ")
+    local(
+        "openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 "
+    )
 
 
 @task
@@ -303,15 +331,17 @@ def install_certbot(c):
     """
     Install certbot for letsencrypt
     """
-    c.sudo('apt-get update')
-    c.sudo('apt-get install python-certbot-nginx')
+    c.sudo("apt-get update")
+    c.sudo("apt-get install python-certbot-nginx")
 
-@task 
+
+@task
 def install_cert(c):
     """
     Generate and install letsencrypt cert
     """
-    c.sudo('certbot --nginx')
+    c.sudo("certbot --nginx")
+
 
 @task
 def generate_site_nginx(c, site, port=8000):
@@ -319,41 +349,45 @@ def generate_site_nginx(c, site, port=8000):
     Generate configuration files for nginx
     """
     from template import NGINX
-    #c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
+
+    # c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
     try:
-        os.makedirs(f'sites/{site}/etc/nginx/sites-available')
+        os.makedirs(f"sites/{site}/etc/nginx/sites-available")
     except FileExistsError:
         pass
-    with open(f'sites/{site}/etc/nginx/sites-available/{site}', 'w') as f:
+    with open(f"sites/{site}/etc/nginx/sites-available/{site}", "w") as f:
         f.write(NGINX.format(server_name=site, root=REMOTE_ROOT, port=port))
-        
+
 
 @task
-def generate_site_supervisor(c, site, module='flask_project', app='app', port=8000):
+def generate_site_supervisor(c, site, module="flask_project", app="app", port=8000):
     """
     Generate configuration files for supervisor/gunicorn
     """
     from template import SUPERVISOR
 
     try:
-        os.makedirs(f'sites/{site}/etc/supervisor/conf.d')
+        os.makedirs(f"sites/{site}/etc/supervisor/conf.d")
     except FileExistsError:
         pass
 
-    with open(f'sites/{site}/etc/supervisor/conf.d/{site}.conf', 'w') as f:
-        f.write(SUPERVISOR.format(
-            program=site,
-            bin=f'{remote_site_dir(site)}/venv3/bin',
-            module=module,
-            app=app,
-            site_dir=remote_site_dir(site),
-            root=REMOTE_ROOT,
-            user=user,
-            port=port,
+    with open(f"sites/{site}/etc/supervisor/conf.d/{site}.conf", "w") as f:
+        f.write(
+            SUPERVISOR.format(
+                program=site,
+                bin=f"{remote_site_dir(site)}/venv3/bin",
+                module=module,
+                app=app,
+                site_dir=remote_site_dir(site),
+                root=REMOTE_ROOT,
+                user=user,
+                port=port,
             )
         )
 
+
 ####
+
 
 @task
 def add_remote(c, site, test_site=None):
@@ -364,24 +398,27 @@ def add_remote(c, site, test_site=None):
         test_site = site
     try:
         subprocess.run(
-            f'git remote add {site} {user}@{test_site}:{remote_git_dir(site)}',
-            shell=True, check=True
-            )
+            f"git remote add {site} {user}@{test_site}:{remote_git_dir(site)}",
+            shell=True,
+            check=True,
+        )
     except subprocess.CalledProcessError:
-        print(f'Remote repository {site} exists')
+        print(f"Remote repository {site} exists")
+
 
 @task
 def push_remote(c, site):
     """
     Push to  remote repo
     """
-    subprocess.run(f'git push {site} master:master', shell=True)
+    subprocess.run(f"git push {site} master:master", shell=True)
+
 
 @task
 def remote_env_cmd(c, env, cmd):
-    c.run(f'{env} {cmd}')
+    c.run(f"{env} {cmd}")
+
 
 @task
 def remote_env_sudo(c, env, cmd):
-    c.sudo(f'{env} {cmd}')
-    
+    c.sudo(f"{env} {cmd}")
