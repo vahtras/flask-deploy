@@ -1,44 +1,56 @@
 ###############
-### imports ###
+#   imports   #
 ###############
 
 import os
 import subprocess
-from invoke import task
+
+from invoke import task, run as local
 from patchwork.files import exists
 
 ##############
-### config ###
+#   config   #
 ##############
 
-REMOTE_ROOT = "/home/www"
-REMOTE_NGINX_DIR = "/etc/nginx/sites-available"
-REMOTE_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
+DEPLOY_ROOT = "/home/www"
+DEPLOY_USER = "user"
+DEPLOY_HOST = "deployhost"
+DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
+DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 SERVER_IP = "127.0.0.1"
 
 
 def remote_site_dir(site):
-    return f"{REMOTE_ROOT}/sites/{site}"
+    return f"{DEPLOY_ROOT}/sites/{site}"
+
+
+@task
+def print_site_dir(c, site):
+    remote = remote_site_dir(site)
+    c.run(f"echo {remote}")
 
 
 def remote_git_dir(site):
-    return f"{REMOTE_ROOT}/sites/{site}/git"
+    return f"{DEPLOY_ROOT}/sites/{site}/git"
 
 
 def remote_flask_dir(site):
-    return f"{REMOTE_ROOT}/sites/{site}/src"
+    return f"{DEPLOY_ROOT}/sites/{site}/src"
 
-
-user = "motetten"
 
 #############
-### tasks ###
+#   tasks   #
 #############
 
 
 @task
 def hello(c):
     c.run('echo "Hello world!"')
+
+
+@task
+def hi(c):
+    local('echo "Hello world!"')
 
 
 ###########
@@ -159,11 +171,11 @@ def install_root(c):
     """
     Install root install directory
     """
-    if exists(c, REMOTE_ROOT):
-        print(REMOTE_ROOT)
+    if exists(c, DEPLOY_ROOT):
+        print(DEPLOY_ROOT)
     else:
-        c.sudo(f"mkdir -p {REMOTE_ROOT}")
-        c.sudo(f"chown {user}:{user} {REMOTE_ROOT}")
+        c.sudo(f"mkdir -p {DEPLOY_ROOT}")
+        c.sudo(f"chown {DEPLOY_USER}:{DEPLOY_USER} {DEPLOY_ROOT}")
 
 
 #########
@@ -291,7 +303,7 @@ def deploy(c, app, repo="production"):
     2. Restart gunicorn via supervisor
     """
     local("git add -A")
-    commit_message = prompt("Commit message?")
+    commit_message = c.prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
     local("git push %s master" % repo)
     sudo("supervisorctl restart %s" % app)
@@ -303,7 +315,7 @@ def rollback(c, site):
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    c.local(f"git revert master --no-edit")
+    c.local("git revert master --no-edit")
     c.local(f"git push {site} master")
     c.sudo(f"supervisorctl restart {site}")
 
@@ -318,12 +330,6 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
-
-
-def self_signed_cert():
-    local(
-        "openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 "
-    )
 
 
 @task
@@ -356,7 +362,7 @@ def generate_site_nginx(c, site, port=8000):
     except FileExistsError:
         pass
     with open(f"sites/{site}/etc/nginx/sites-available/{site}", "w") as f:
-        f.write(NGINX.format(server_name=site, root=REMOTE_ROOT, port=port))
+        f.write(NGINX.format(server_name=site, root=DEPLOY_ROOT, port=port))
 
 
 @task
@@ -379,8 +385,8 @@ def generate_site_supervisor(c, site, module="flask_project", app="app", port=80
                 module=module,
                 app=app,
                 site_dir=remote_site_dir(site),
-                root=REMOTE_ROOT,
-                user=user,
+                root=DEPLOY_ROOT,
+                user=DEPLOY_USER,
                 port=port,
             )
         )
@@ -390,15 +396,13 @@ def generate_site_supervisor(c, site, module="flask_project", app="app", port=80
 
 
 @task
-def add_remote(c, site, test_site=None):
+def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     """
     Define remote repo for site to track
     """
-    if test_site is None:
-        test_site = site
     try:
         subprocess.run(
-            f"git remote add {site} {user}@{test_site}:{remote_git_dir(site)}",
+            f"git remote add {site} {deploy_user}@{deploy_host}:{remote_git_dir(site)}",
             shell=True,
             check=True,
         )

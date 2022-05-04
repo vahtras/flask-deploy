@@ -15,7 +15,7 @@ def port(request):
     return request.param
 
 
-@patch('fabfile.REMOTE_ROOT', '/www')
+@patch('fabfile.DEPLOY_ROOT', '/www')
 @patch('invoke.tasks.isinstance')  # necessary for mocking
 def test_site_nginx(c, port):
     m = mock_open()
@@ -44,8 +44,8 @@ def test_site_nginx(c, port):
     ))
 
 
-@patch('fabfile.REMOTE_ROOT', '/www')
-@patch('fabfile.user', 'www')
+@patch('fabfile.DEPLOY_ROOT', '/www')
+@patch('fabfile.DEPLOY_USER', 'www')
 @patch('invoke.tasks.isinstance')  # necessary for mocking
 def test_site_supervisor(c, port):
     m = mock_open()

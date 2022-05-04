@@ -4,9 +4,10 @@ import textwrap
 import fabfile
 
 
-@patch('fabfile.REMOTE_ROOT', '/www')
+@patch('fabfile.DEPLOY_ROOT', '/www')
 @patch('fabfile.SERVER_IP', '123.456.789.00')
-@patch('fabfile.user', 'whom')
+@patch('fabfile.DEPLOY_USER', 'whom')
+@patch('fabfile.DEPLOY_HOST', 'where')
 @patch('invoke.tasks.isinstance')  # necessary for mocking
 @patch('fabfile.exists')
 class TestFab:
@@ -74,9 +75,11 @@ class TestFab:
 
     def test_add_remote(self, *args):
         with patch('fabfile.subprocess.run') as fsr:
-            fabfile.add_remote(self.c, 'foo.bar')
+            fabfile.add_remote(
+                self.c, 'foo.bar', deploy_user='whom', deploy_host='where'
+            )
         fsr.assert_called_once_with(
-            'git remote add foo.bar whom@foo.bar:/www/sites/foo.bar/git',
+            'git remote add foo.bar whom@where:/www/sites/foo.bar/git',
             shell=True, check=True
         )
 
@@ -89,7 +92,9 @@ class TestFab:
 
     def test_add_remote_other(self, *args):
         with patch('fabfile.subprocess.run') as fsr:
-            fabfile.add_remote(self.c, 'foo.bar', 'test.site')
+            fabfile.add_remote(
+                self.c, 'foo.bar', deploy_user='whom', deploy_host='test.site'
+            )
         fsr.assert_called_once_with(
             'git remote add foo.bar whom@test.site:/www/sites/foo.bar/git',
             shell=True, check=True
