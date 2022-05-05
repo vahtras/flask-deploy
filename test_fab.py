@@ -255,9 +255,10 @@ class TestFab:
 
     def test_rollback(self, *args):
 
-        fabfile.rollback(self.c, 'foo.bar')
+        with patch('fabfile.local') as mock_local:
+            fabfile.rollback(self.c, 'foo.bar')
 
-        self.c.local.assert_has_calls([
+        mock_local.assert_has_calls([
             call('git revert master --no-edit'),
             call('git push foo.bar master')
         ])
@@ -266,13 +267,6 @@ class TestFab:
 ###########
 # certbot #
 ###########
-
-    def test_install_certbot(self, *args):
-        fabfile.install_certbot(self.c)
-        self.c.sudo.assert_has_calls([
-            call('apt-get update'),
-            call('apt-get install python-certbot-nginx'),
-        ])
 
     def test_install_cert(self, *args):
         fabfile.install_cert(self.c)

@@ -3,6 +3,7 @@
 ###############
 
 import os
+import pathlib
 import subprocess
 
 from invoke import task, run as local
@@ -22,12 +23,6 @@ SERVER_IP = "127.0.0.1"
 
 def remote_site_dir(site):
     return f"{DEPLOY_ROOT}/sites/{site}"
-
-
-@task
-def print_site_dir(c, site):
-    remote = remote_site_dir(site)
-    c.run(f"echo {remote}")
 
 
 def remote_git_dir(site):
@@ -230,7 +225,7 @@ def enable_link(c, site):
 
 @task
 def scp(c, source, target):
-    dir_, file_ = os.path.split(target)
+    file_ = pathlib.Path(target).name
     c.put(source, f"/tmp/{file_}")
     c.sudo(f"mv /tmp/{file_} {target}")
 
@@ -315,8 +310,8 @@ def rollback(c, site):
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    c.local("git revert master --no-edit")
-    c.local(f"git push {site} master")
+    local("git revert master --no-edit")
+    local(f"git push {site} master")
     c.sudo(f"supervisorctl restart {site}")
 
 
@@ -330,16 +325,6 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
-
-
-@task
-def install_certbot(c):
-    """
-    Install certbot for letsencrypt
-    """
-    c.sudo("apt-get update")
-    c.sudo("apt-get install python-certbot-nginx")
-
 
 @task
 def install_cert(c):
