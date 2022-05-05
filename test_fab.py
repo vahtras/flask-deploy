@@ -137,8 +137,8 @@ class TestFab:
             ),
         ])
 
-    def test_remote_flask_dir(self, *args):
-        assert fabfile.remote_flask_dir('foo.bar') == '/www/sites/foo.bar/src'
+    def test_remote_flask_work_tree(self, *args):
+        assert fabfile.remote_flask_work_tree('foo.bar') == '/www/sites/foo.bar/src'
 
     def test_install_root(self, *args):
         exists, _ = args

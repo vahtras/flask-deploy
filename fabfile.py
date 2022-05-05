@@ -29,7 +29,7 @@ def remote_git_dir(site):
     return f"{DEPLOY_ROOT}/sites/{site}/git"
 
 
-def remote_flask_dir(site):
+def remote_flask_work_tree(site):
     return f"{DEPLOY_ROOT}/sites/{site}/src"
 
 
@@ -60,7 +60,7 @@ def create(c, site, module="flask_project", app="app", port=8000):
     """
     # install_requirements(c)
     configure_git(c, site)
-    install_flask(c, site, app)
+    install_flask(c, site, package=app)
     add_remote(c, site)
     push_remote(c, site)
     generate_site_nginx(c, site, port)
@@ -130,7 +130,7 @@ def configure_git(c, site):
         c.run(f"git init --bare {remote}")
         c.run(
             'echo "#!/bin/sh\n'
-            f"GIT_WORK_TREE={remote_flask_dir(site)}"
+            f"GIT_WORK_TREE={remote_flask_work_tree(site)}"
             f' git checkout --recurse-submodules -f" > {remote}/hooks/post-receive'
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
@@ -151,12 +151,12 @@ def install_flask(c, site, package="app"):
     3. Checkout from previously configured git repo
     """
 
-    if exists(c, remote_flask_dir(site)):
-        print(f"{remote_flask_dir(site)} exists")
+    if exists(c, remote_flask_work_tree(site)):
+        print(f"{remote_flask_work_tree(site)} exists")
     else:
-        c.run(f"mkdir -p {remote_flask_dir(site)}")
+        c.run(f"mkdir -p {remote_flask_work_tree(site)}")
         c.run(
-            f"ln -sf  {remote_flask_dir(site)}/{package}/static {remote_site_dir(site)}/static"
+            f"ln -sf  {remote_flask_work_tree(site)}/{package}/static {remote_site_dir(site)}/static"
         )
         install_venv(c, site)
 
