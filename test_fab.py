@@ -118,7 +118,7 @@ class TestFab:
 
         with patch('fabfile.install_root'):
             with patch('fabfile.print') as p:
-                fabfile.install_flask(self.c, 'foo.bar')
+                fabfile.install_flask_work_tree(self.c, 'foo.bar')
         self.c.run.assert_not_called()
         p.assert_called_once_with('/www/sites/foo.bar/src exists')
 
@@ -128,7 +128,7 @@ class TestFab:
 
         with patch('fabfile.install_root'):
             with patch('fabfile.install_venv'):
-                fabfile.install_flask(self.c, 'foo.bar')
+                fabfile.install_flask_work_tree(self.c, 'foo.bar')
         self.c.run.assert_has_calls([
             call("mkdir -p /www/sites/foo.bar/src"),
             call(

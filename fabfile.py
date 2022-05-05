@@ -60,7 +60,8 @@ def create(c, site, module="flask_project", app="app", port=8000):
     """
     # install_requirements(c)
     configure_git(c, site)
-    install_flask(c, site, package=app)
+    install_flask_work_tree(c, site, package=app)
+    install_venv(c, site)
     add_remote(c, site)
     push_remote(c, site)
     generate_site_nginx(c, site, port)
@@ -142,7 +143,7 @@ def configure_git(c, site):
 
 
 @task
-def install_flask(c, site, package="app"):
+def install_flask_work_tree(c, site, package="app"):
     """
     Install Flask project
 
@@ -158,7 +159,6 @@ def install_flask(c, site, package="app"):
         c.run(
             f"ln -sf  {remote_flask_work_tree(site)}/{package}/static {remote_site_dir(site)}/static"
         )
-        install_venv(c, site)
 
 
 @task
