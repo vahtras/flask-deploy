@@ -411,3 +411,8 @@ def remote_env_cmd(c, env, cmd):
 @task
 def remote_env_sudo(c, env, cmd):
     c.sudo(f"{env} {cmd}")
+
+
+@task
+def list_ports(c):
+    c.run('grep localhost  /etc/nginx/sites-enabled/* | cut -d/ -f 5,7 | cut -d: -f 4,1')

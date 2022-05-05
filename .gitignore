@@ -7,3 +7,4 @@ htmlcov
 .bashrc
 *.pem
 sites
+.envrc
