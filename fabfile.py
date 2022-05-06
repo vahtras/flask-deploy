@@ -412,11 +412,11 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
 
 
 @task
-def push_remote(c, site):
+def push_remote(c, site, branch='master'):
     """
     Push to  remote repo
     """
-    subprocess.run(f"git push {site}", shell=True)
+    subprocess.run(f"git push {site} {branch}", shell=True)
 
 
 @task

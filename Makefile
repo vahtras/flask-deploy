@@ -1,7 +1,7 @@
 local:
 	FLASK_APP=flask_project flask run
-deploy:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password $$SITE --module flask_project --app app --port $$PORT
+create:
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password create $$SITE --module flask_project --app app --port $$PORT
 
 configure-git:
 	fab --hosts $$DEPLOYHOST configure-git $$SITE
@@ -39,3 +39,6 @@ start-app:
 
 install-cert:
 	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password install-cert foo.bar
+
+clean:
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password clean foo.bar

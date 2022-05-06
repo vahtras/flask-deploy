@@ -107,7 +107,7 @@ class TestFab:
         with patch('fabfile.subprocess.run') as fsr:
             fabfile.push_remote(self.c, 'foo.bar')
         fsr.assert_called_once_with(
-            'git push foo.bar',
+            'git push foo.bar master',
             shell=True
         )
 
