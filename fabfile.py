@@ -15,8 +15,8 @@ from patchwork.files import exists
 ##############
 
 DEPLOY_ROOT = "/home/www"
-DEPLOY_USER = "user"
-DEPLOY_HOST = "deployhost"
+DEPLOY_USER = os.environ.get('DEPLOYUSER', 'user')
+DEPLOY_HOST = os.environ.get('DEPLOYHOST', 'deployhost')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 SERVER_IP = "127.0.0.1"
