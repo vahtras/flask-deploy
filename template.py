@@ -16,7 +16,7 @@ server {{
 SUPERVISOR = """\
 [program:{program}]
 command = {bin}/gunicorn {module}:{app} -b localhost:{port}
-directory = {site_dir}/src
+directory = {src}
 user = {user}
 """
 

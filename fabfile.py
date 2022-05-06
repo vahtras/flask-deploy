@@ -5,6 +5,7 @@
 import os
 import pathlib
 import subprocess
+import textwrap
 
 from invoke import task, run as local
 from patchwork.files import exists
@@ -87,7 +88,6 @@ def install_requirements(c):
     c.sudo("apt-get update")
     c.sudo("apt-get install -y python3")
     c.sudo("apt-get install -y python3-pip")
-    c.sudo("apt-get install -y python3-virtualenv")
     c.sudo("apt-get install -y nginx")
     c.sudo("apt-get install -y supervisor")
     c.sudo("apt-get install -y git")
@@ -100,15 +100,20 @@ def install_site_dir(c, site):
 
 
 @task
-def install_venv(c, site):
+def install_venv(c, site, version="3.8"):
     c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
-    c.run(
+    site_dir = f'{remote_site_dir(site)}'
+    venv_dir = f'{site_dir}/venv{version}'
+    py = f'{venv_dir}/bin/python'
+    pip = f'{py} -m pip'
+    c.run(textwrap.dedent(
         f"""\
-virtualenv {remote_site_dir(site)}/venv3 -p python3
-source {remote_site_dir(site)}/venv3/bin/activate
-pip install -r {remote_site_dir(site)}/requirements.txt
-"""
-    )
+        python{version} -m venv {venv_dir}
+        {pip} install --upgrade pip setuptools
+        {pip} install -r {remote_site_dir(site)}/requirements.txt
+        echo source {venv_dir}/bin/activate > {site_dir}/.envrc
+        """
+    ))
 
 
 #######
@@ -351,11 +356,19 @@ def generate_site_nginx(c, site, port=8000):
 
 
 @task
-def generate_site_supervisor(c, site, module="flask_project", app="app", port=8000):
+def generate_site_supervisor(
+    c, site,
+    module="flask_project",
+    app="app",
+    port=8000,
+    version="3.8",
+    deploy_user=DEPLOY_USER,
+):
     """
     Generate configuration files for supervisor/gunicorn
     """
     from template import SUPERVISOR
+    bindir = f"{remote_site_dir(site)}/venv{version}/bin"
 
     try:
         os.makedirs(f"sites/{site}/etc/supervisor/conf.d")
@@ -366,13 +379,12 @@ def generate_site_supervisor(c, site, module="flask_project", app="app", port=80
         f.write(
             SUPERVISOR.format(
                 program=site,
-                bin=f"{remote_site_dir(site)}/venv3/bin",
+                bin=bindir,
                 module=module,
                 app=app,
-                site_dir=remote_site_dir(site),
-                root=DEPLOY_ROOT,
-                user=DEPLOY_USER,
                 port=port,
+                src=remote_flask_work_tree(site),
+                user=deploy_user,
             )
         )
 
@@ -400,7 +412,7 @@ def push_remote(c, site):
     """
     Push to  remote repo
     """
-    subprocess.run(f"git push {site} master:master", shell=True)
+    subprocess.run(f"git push {site}", shell=True)
 
 
 @task

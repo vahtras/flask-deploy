@@ -28,12 +28,13 @@ class TestFab:
         self.c.run.assert_called_once_with('mkdir -p /www/sites/foo.bar')
 
     def test_install_venv(self, *args):
-        fabfile.install_venv(self.c, 'foo.bar')
+        fabfile.install_venv(self.c, 'foo.bar', version="3.8")
         self.c.run.assert_called_once_with(textwrap.dedent(
             """\
-            virtualenv /www/sites/foo.bar/venv3 -p python3
-            source /www/sites/foo.bar/venv3/bin/activate
-            pip install -r /www/sites/foo.bar/requirements.txt
+            python3.8 -m venv /www/sites/foo.bar/venv3.8
+            /www/sites/foo.bar/venv3.8/bin/python -m pip install --upgrade pip setuptools
+            /www/sites/foo.bar/venv3.8/bin/python -m pip install -r /www/sites/foo.bar/requirements.txt
+            echo source /www/sites/foo.bar/venv3.8/bin/activate > /www/sites/foo.bar/.envrc
             """
         ))
 #######
@@ -104,7 +105,7 @@ class TestFab:
         with patch('fabfile.subprocess.run') as fsr:
             fabfile.push_remote(self.c, 'foo.bar')
         fsr.assert_called_once_with(
-            'git push foo.bar master:master',
+            'git push foo.bar',
             shell=True
         )
 

@@ -97,11 +97,11 @@ runs
     
 runs
     
-    $ sudo /etc/init.d/nginx start
-    $ sudo rm /etc/nginx/sites-enabled/default
-    $ scp ./sites/foo.bar/available /etc/nginx/sites-available/foo.bar
-    $ sudo ln -s /etc/nginx/sites-available/foo.bar /etc/nginx/sites-enabled/foo.bar
-    $ sudo /etc/init.d/nginx restart
+    % sudo /etc/init.d/nginx start
+    % sudo rm /etc/nginx/sites-enabled/default
+    $ scp ./sites/foo.bar/etc/nginx/sites-available/foo.bar /etc/nginx/sites-available/foo.bar
+    % sudo ln -s /etc/nginx/sites-available/foo.bar /etc/nginx/sites-enabled/foo.bar
+    % sudo /etc/init.d/nginx restart
     
     
 ## configure-supervisor

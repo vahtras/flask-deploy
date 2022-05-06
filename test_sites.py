@@ -51,7 +51,10 @@ def test_site_supervisor(c, port):
     m = mock_open()
     with patch('fabfile.open', m, create=True):
         with patch('fabfile.os.makedirs') as mk:
-            fabfile.generate_site_supervisor(c, 'foo.bar', 'baz', 'bla', port)
+            fabfile.generate_site_supervisor(
+                c, 'foo.bar',
+                module='baz', app='bla', port=port, version=3.8, deploy_user='www'
+            )
     mk.assert_called_once_with('sites/foo.bar/etc/supervisor/conf.d')
     m.assert_called_once_with(
         'sites/foo.bar/etc/supervisor/conf.d/foo.bar.conf',
@@ -60,7 +63,7 @@ def test_site_supervisor(c, port):
     m().write.assert_called_with(textwrap.dedent(
         f"""\
         [program:foo.bar]
-        command = /www/sites/foo.bar/venv3/bin/gunicorn baz:bla -b localhost:{port}
+        command = /www/sites/foo.bar/venv3.8/bin/gunicorn baz:bla -b localhost:{port}
         directory = /www/sites/foo.bar/src
         user = www
         """
