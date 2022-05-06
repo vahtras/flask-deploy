@@ -104,6 +104,8 @@ def install_venv(c, site, version="3.8"):
     c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
     site_dir = f'{remote_site_dir(site)}'
     venv_dir = f'{site_dir}/venv{version}'
+    git_dir = f'{site_dir}/git'
+    work_dir = f'{site_dir}/src'
     py = f'{venv_dir}/bin/python'
     pip = f'{py} -m pip'
     c.run(textwrap.dedent(
@@ -112,6 +114,8 @@ def install_venv(c, site, version="3.8"):
         {pip} install --upgrade pip setuptools
         {pip} install -r {remote_site_dir(site)}/requirements.txt
         echo source {venv_dir}/bin/activate > {site_dir}/.envrc
+        echo export GIT_DIR={git_dir} >> {site_dir}/.envrc
+        echo export GIT_WORK_TREE={work_dir} >> {site_dir}/.envrc
         """
     ))
 
@@ -122,7 +126,7 @@ def install_venv(c, site, version="3.8"):
 
 
 @task
-def configure_git(c, site):
+def configure_git(c, site, branch='master'):
     """
     1. Setup bare Git repo
     2. Create post-receive hook
@@ -137,7 +141,7 @@ def configure_git(c, site):
         c.run(
             'echo "#!/bin/sh\n'
             f"GIT_WORK_TREE={remote_flask_work_tree(site)}"
-            f' git checkout --recurse-submodules -f" > {remote}/hooks/post-receive'
+            f' git checkout {branch} --recurse-submodules -f" > {remote}/hooks/post-receive'
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 

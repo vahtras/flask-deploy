@@ -35,6 +35,8 @@ class TestFab:
             /www/sites/foo.bar/venv3.8/bin/python -m pip install --upgrade pip setuptools
             /www/sites/foo.bar/venv3.8/bin/python -m pip install -r /www/sites/foo.bar/requirements.txt
             echo source /www/sites/foo.bar/venv3.8/bin/activate > /www/sites/foo.bar/.envrc
+            echo export GIT_DIR=/www/sites/foo.bar/git >> /www/sites/foo.bar/.envrc
+            echo export GIT_WORK_TREE=/www/sites/foo.bar/src >> /www/sites/foo.bar/.envrc
             """
         ))
 #######
@@ -64,7 +66,7 @@ class TestFab:
         fabfile.configure_git(self.c, 'foo.bar')
 
         post_receive_file = '/www/sites/foo.bar/git/hooks/post-receive'
-        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout --recurse-submodules -f"
+        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout master --recurse-submodules -f"
         self.c.run.assert_has_calls([
             call('git init --bare /www/sites/foo.bar/git'),
             call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
