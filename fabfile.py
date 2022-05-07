@@ -55,19 +55,25 @@ def hi(c):
 
 
 @task
-def create(c, site, module="flask_project", app="app", port=8000):
+def create(
+    c, site,
+    module="flask_project",
+    app="app",
+    port=8000,
+    deploy_user=DEPLOY_USER
+):
     """
     Install a deployment from scratch
     """
     # install_requirements(c)
-    configure_git(c, site)
+    configure_git(c, site, branch='master')
     install_flask_work_tree(c, site, package=app)
-    install_venv(c, site)
-    add_remote(c, site)
-    push_remote(c, site)
-    generate_site_nginx(c, site, port)
+    install_venv(c, site, version=3.8)
+    add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
+    push_remote(c, site, branch='master')
+    generate_site_nginx(c, site, port=port)
     configure_nginx(c, site)
-    generate_site_supervisor(c, site, module, app, port)
+    generate_site_supervisor(c, site, module=module, app=app, port=port)
     configure_supervisor(c, site)
     # start webserver
     start_app(c, site)
@@ -336,11 +342,11 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
 
 @task
-def install_cert(c):
+def install_cert(c, site):
     """
     Generate and install letsencrypt cert
     """
-    c.sudo("certbot --nginx")
+    c.sudo(f"certbot --nginx -d {site}")
 
 
 @task

@@ -24,7 +24,7 @@ generate-site-nginx:
 	@cat sites/$$SITE/etc/nginx/sites-available/$$SITE | sed "s/^/        /"
 
 configure-nginx:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password configure-nginx foo.bar
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password configure-nginx $$SITE
 
 generate-site-supervisor:
 	fab generate-site-supervisor $$SITE --module $$FLASK_APP --app $$APP --port $$PORT --deploy-user $$DEPLOYUSER
@@ -32,13 +32,13 @@ generate-site-supervisor:
 	@cat sites/$$SITE/etc/supervisor/conf.d/$$SITE.conf | sed "s/^/        /"
 
 configure-supervisor:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password configure-supervisor foo.bar
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password configure-supervisor $$SITE
 
 start-app:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password start-app foo.bar
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password start-app $$SITE
 
 install-cert:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password install-cert foo.bar
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password install-cert $$SITE
 
 clean:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password clean foo.bar
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password clean $$SITE

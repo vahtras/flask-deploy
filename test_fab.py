@@ -272,9 +272,9 @@ class TestFab:
 ###########
 
     def test_install_cert(self, *args):
-        fabfile.install_cert(self.c)
+        fabfile.install_cert(self.c, 'foo.bar')
         self.c.sudo.assert_called_once_with(
-            'certbot --nginx'
+            'certbot --nginx -d foo.bar'
         )
 
 #############
