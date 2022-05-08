@@ -8,3 +8,6 @@ htmlcov
 *.pem
 sites
 .envrc
+build
+dist
+*.egg-info

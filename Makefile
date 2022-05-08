@@ -37,6 +37,9 @@ configure-supervisor:
 start-app:
 	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password start-app $$SITE
 
+restart-app:
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password restart-app $$SITE
+
 install-cert:
 	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password install-cert $$SITE
 
