@@ -5,7 +5,7 @@ import fabfile
 
 
 @patch('fabfile.DEPLOY_ROOT', '/www')
-@patch('fabfile.SERVER_IP', '123.456.789.00')
+# @patch('fabfile.SERVER_IP', '123.456.789.00')
 @patch('fabfile.DEPLOY_USER', 'whom')
 @patch('fabfile.DEPLOY_HOST', 'where')
 @patch('invoke.tasks.isinstance')  # necessary for mocking
@@ -283,7 +283,8 @@ class TestFab:
 
     def test_clean(self, *args):
 
-        fabfile.clean(self.c, 'foo.bar')
+        with patch('fabfile.local') as mock_local:
+            fabfile.clean(self.c, 'foo.bar')
 
         self.c.sudo.assert_has_calls([
             call('supervisorctl stop foo.bar'),
@@ -291,6 +292,11 @@ class TestFab:
             call('rm -f /etc/supervisor/conf.d/foo.bar.conf'),
             call('rm -f /etc/nginx/sites-available/foo.bar'),
             call('rm -f /etc/nginx/sites-enabled/foo.bar'),
+        ])
+
+        mock_local.assert_has_calls([
+            call('git remote remove foo.bar'),
+            call('rm -rf sites/foo.bar')
         ])
 
 # env

@@ -19,7 +19,7 @@ DEPLOY_USER = os.environ.get('DEPLOYUSER', 'user')
 DEPLOY_HOST = os.environ.get('DEPLOYHOST', 'deployhost')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
-SERVER_IP = "127.0.0.1"
+FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
 
 
 def remote_site_dir(site):
@@ -57,7 +57,7 @@ def hi(c):
 @task
 def create(
     c, site,
-    module="flask_project",
+    module=FLASK_MODULE,
     app="app",
     port=8000,
     deploy_user=DEPLOY_USER
@@ -78,7 +78,7 @@ def create(
     # start webserver
     start_app(c, site)
     # install certificate from Let's Encrypt
-    install_cert(c)
+    install_cert(c, site)
 
 
 @task
@@ -340,6 +340,9 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
+    local(f'git remote remove {site}')
+    local(f'rm -rf sites/{site}')
+
 
 @task
 def install_cert(c, site):

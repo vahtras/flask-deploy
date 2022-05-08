@@ -1,7 +1,7 @@
 local:
-	FLASK_APP=flask_project flask run
+	FLASK_APP=$$FLASK_MODULE flask run
 create:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password create $$SITE --module flask_project --app app --port $$PORT
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password create $$SITE --module $$FLASK_MODULE --app app --port $$PORT
 
 configure-git:
 	fab --hosts $$DEPLOYHOST configure-git $$SITE
@@ -27,7 +27,7 @@ configure-nginx:
 	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password configure-nginx $$SITE
 
 generate-site-supervisor:
-	fab generate-site-supervisor $$SITE --module $$FLASK_APP --app $$APP --port $$PORT --deploy-user $$DEPLOYUSER
+	fab generate-site-supervisor $$SITE --module $$FLASK_MODULE --app $$APP --port $$PORT --deploy-user $$DEPLOYUSER
 	@tree --noreport sites/$$SITE/etc/supervisor
 	@cat sites/$$SITE/etc/supervisor/conf.d/$$SITE.conf | sed "s/^/        /"
 
