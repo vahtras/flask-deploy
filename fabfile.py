@@ -20,6 +20,8 @@ DEPLOY_HOST = os.environ.get('DEPLOYHOST', 'deployhost')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
+APP = os.environ.get('APP', 'app')
+PORT = os.environ.get('PORT', 9000)
 
 
 def remote_site_dir(site):
@@ -58,8 +60,8 @@ def hi(c):
 def create(
     c, site,
     module=FLASK_MODULE,
-    app="app",
-    port=8000,
+    app=APP,
+    port=PORT,
     deploy_user=DEPLOY_USER
 ):
     """

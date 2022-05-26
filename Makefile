@@ -1,7 +1,7 @@
 local:
 	FLASK_APP=$$FLASK_MODULE flask run
 create:
-	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password create $$SITE --module $$FLASK_MODULE --app app --port $$PORT
+	fab --hosts $$DEPLOYHOST --prompt-for-sudo-password create $$SITE --module $$FLASK_MODULE --app $$APP --port $$PORT
 
 configure-git:
 	fab --hosts $$DEPLOYHOST configure-git $$SITE
