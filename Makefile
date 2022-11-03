@@ -65,6 +65,9 @@ stop-app:
 restart-app:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password restart-app $$SITE
 
+restart-all:
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password restart-all $$SITE
+
 install-cert:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password install-cert $$SITE
 
