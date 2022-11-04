@@ -25,8 +25,6 @@ fh.setLevel(logging.INFO)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
-logger.info('Starting fabfile')
-
 
 @task
 def gitter(c):
@@ -44,7 +42,7 @@ def gitter(c):
 
 DEPLOY_ROOT = "/home/www"
 DEPLOY_USER = os.environ.get('DEPLOY_USER', 'user')
-DEPLOY_HOST = os.environ.get('DEPLOYHOST', 'deployhost')
+DEPLOY_HOST = os.environ.get('DEPLOY_HOST', 'deployhost')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
@@ -117,7 +115,7 @@ def create(
     Install a deployment from scratch
     """
     logger.info('Create from scratch')
-    install_requirements(c)
+    # install_requirements(c)
     configure_git(c, site, branch='master')
     install_flask_work_tree(c, site, package=app)
     install_venv(c, site, version=3.8)
@@ -196,15 +194,33 @@ def configure_git(c, site, branch='master'):
     logger.info('Configure git')
 
     if not pathlib.Path('.git').is_dir():
-        logger.info("Initialize git locally first")
+        logger.info("Initializing git locally first")
         local("git init .")
         local('echo *.pyc > .gitignore')
-        local("git commit -am 'initialize git'")
-        exit()
+        local('echo *.log >> .gitignore')
+        local('echo .envrc >> .gitignore')
+        local('echo flask-deploy >> .gitignore')
+        local('echo fabfile.py >> .gitignore')
+        local('git add .gitignore')
 
-    status = local('git status', hide=True)
-    if "working tree clean" not in status.stdout:
+        files = [
+            "app.py", "config.py", "requirements.txt", "requirements-dev.txt",
+            "Makefile",
+        ]
+        dirs = ["app", "templates", "tests"]
+        for f in files:
+            local(f'test -f {f} && git add {f} || :')
+        for d in dirs:
+            local(f'test -d {d} && git add {d} || :')
+
+        local("git commit -am 'initialize git'")
+
+    git_status = local('git status', hide=True)
+    if "working tree clean" not in git_status.stdout:
         logger.info("Local repository not clean")
+        print()
+        print(textwrap.indent(git_status.stdout, '    '))
+        print("Untracked files present - save to git before continuing")
         exit()
 
     remote = remote_git_dir(site)
@@ -359,6 +375,7 @@ def start_app(c, site):
     """
     logger.info('Start app')
     c.sudo(f"supervisorctl start {site}")
+    c.sudo(f"supervisorctl status {site}")
 
 
 @task
@@ -421,7 +438,7 @@ def rollback(c, site):
 
 
 @task
-def clean(c, site):
+def clean_server(c, site):
     """
     Clear a configuration from server
     """
@@ -430,13 +447,13 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
-    local(
-        f'test -d .git'
-        f' && git remote show {site}'
-        f' && git remote remove {site}'
-        f' || exit 0'
-    )
-    local(f'rm -rf sites/{site}')
+
+    clean_local(c, site)
+
+
+@task
+def clean_local(c, site):
+    local(f'rm -rf .git sites/{site}')
 
 
 @task

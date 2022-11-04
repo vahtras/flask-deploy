@@ -5,7 +5,7 @@ default:
 	@echo "Remote commands"
 	@echo "──────────────"
 	@echo "add-remote:	$$(python -c 'import fabfile; print(fabfile.add_remote.__doc__)')"
-	@echo "clean:	$$(python -c 'import fabfile; print(fabfile.clean.__doc__)')"
+	@echo "clean-server:	$$(python -c 'import fabfile; print(fabfile.clean_server.__doc__)')"
 	@echo "configure-git:	$$(python -c 'import fabfile; print(fabfile.configure_git.__doc__)')"
 	@echo "create:	$$(python -c 'import fabfile; print(fabfile.create.__doc__)')"
 	@echo "generate-site-nginx:	$$(python -c 'import fabfile; print(fabfile.generate_site_nginx.__doc__)')"
@@ -71,8 +71,8 @@ restart-all:
 install-cert:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password install-cert $$SITE
 
-clean:
-	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean $$SITE
+clean-server:
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean-server $$SITE
 
 status:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password status
