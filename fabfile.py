@@ -43,6 +43,7 @@ def gitter(c):
 DEPLOY_ROOT = "/home/www"
 DEPLOY_USER = os.environ.get('DEPLOY_USER', 'user')
 DEPLOY_HOST = os.environ.get('DEPLOY_HOST', 'deployhost')
+DEPLOY_SERVER = os.environ.get('DEPLOY_SERVER', 'gunicorn')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
@@ -204,8 +205,8 @@ def configure_git(c, site, branch='master'):
         local('git add .gitignore')
 
         files = [
-            "app.py", "config.py", "requirements.txt", "requirements-dev.txt",
-            "Makefile",
+            "app.py", "main.py", "config.py", "requirements.txt",
+            "requirements-dev.txt", "Makefile",
         ]
         dirs = ["app", "templates", "tests"]
         for f in files:
@@ -232,7 +233,8 @@ def configure_git(c, site, branch='master'):
         c.run(
             'echo "#!/bin/sh\n'
             f"GIT_WORK_TREE={remote_flask_work_tree(site)}"
-            f' git checkout {branch} --recurse-submodules -f" > {remote}/hooks/post-receive'
+            f' git checkout {branch} --recurse-submodules -f"'
+            f' > {remote}/hooks/post-receive'
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 
@@ -363,7 +365,7 @@ def configure_supervisor(c, site):
 
 
 @task
-def reload_supervisor(c, site):
+def reload_supervisor(c):
     c.sudo("supervisorctl reread")
     c.sudo("supervisorctl update")
 
@@ -392,7 +394,7 @@ def restart_app(c, site):
     Restart app (with stop/start)
     """
     stop_app(c, site)
-    reload_supervisor(c, site)
+    reload_supervisor(c)
     start_app(c, site)
 
 
@@ -402,6 +404,7 @@ def restart_all(c, site):
     Restart nginx and app
     """
     restart_nginx(c)
+    reload_supervisor(c)
     restart_app(c, site)
 
 
@@ -453,7 +456,7 @@ def clean_server(c, site):
 
 @task
 def clean_local(c, site):
-    local(f'rm -rf .git sites/{site}')
+    local(f'rm -rf sites/{site}')
 
 
 @task
@@ -462,7 +465,7 @@ def install_cert(c, site):
     Generate and install letsencrypt cert
     """
     logger.info('Install cert')
-    c.sudo(f"certbot --nginx -d {site}")
+    c.sudo(f"certbot --nginx -d {site} -n")
 
 
 @task
@@ -490,10 +493,22 @@ def generate_site_supervisor(
     port=8000,
     version="3.8",
     deploy_user=DEPLOY_USER,
+    deploy_server=DEPLOY_SERVER,
 ):
     """
     Generate configuration files for supervisor/gunicorn
     """
+    try:
+        import flask
+        server = flask.__name__
+    except ImportError:
+        try:
+            import fastapi
+            server = fastapi.__name__
+        except ImportError:
+            logger('No framework installed')
+            raise
+
     from template import SUPERVISOR
     logger.info('Generate supervisor')
     bindir = f"{remote_site_dir(site)}/venv{version}/bin"
@@ -505,7 +520,7 @@ def generate_site_supervisor(
 
     with open(f"sites/{site}/etc/supervisor/conf.d/{site}.conf", "w") as f:
         f.write(
-            SUPERVISOR.format(
+            SUPERVISOR[server].format(
                 program=site,
                 bin=bindir,
                 module=module,
@@ -513,6 +528,7 @@ def generate_site_supervisor(
                 port=port,
                 src=remote_flask_work_tree(site),
                 user=deploy_user,
+                server=deploy_server,
             )
         )
 
