@@ -6,6 +6,7 @@ originally based on a [realpython blog post](https://realpython.com/blog/python/
 ## Content
 
 Available tasks:
+
     $ fab -l
       add-remote                 Define remote repo for site to track
       clean                      Clear a configuration from server
