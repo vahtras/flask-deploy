@@ -318,7 +318,11 @@ def stop_app(c, site):
     """
     Stop the app!
     """
-    c.sudo(f"supervisorctl status {site} | grep RUNNING && supervisorctl stop {site} || exit 0")
+    c.sudo(
+        f"supervisorctl status {site} | grep RUNNING"
+        f" && supervisorctl stop {site}"
+        " || exit 0"
+    )
 
 
 @task
@@ -358,7 +362,7 @@ def deploy(c, app, repo="production"):
     commit_message = c.prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
     local("git push %s master" % repo)
-    sudo("supervisorctl restart %s" % app)
+    c.sudo("supervisorctl restart %s" % app)
 
 
 @task
@@ -461,10 +465,12 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     Define remote repo for site to track
     """
     logging.info('Add remote')
-    assert pathlib.Path('.git').is_dir(), 'Local git repository not initialized'
+    assert pathlib.Path('.git').is_dir(), \
+        'Local git repository not initialized'
     try:
+        remote_repo = f"{deploy_user}@{deploy_host}:{remote_git_dir(site)}"
         subprocess.run(
-            f"git remote add {site} {deploy_user}@{deploy_host}:{remote_git_dir(site)}",
+            f"git remote add {site} {remote_repo}",
             shell=True,
             check=True,
         )
@@ -496,4 +502,8 @@ def list_ports(c):
     """
     List used ports on deploy hosts
     """
-    c.run('grep localhost  /etc/nginx/sites-enabled/* | cut -d/ -f 5,7 | cut -d: -f 4,1')
+    c.run(
+        'grep localhost  /etc/nginx/sites-enabled/*'
+        ' | cut -d/ -f 5,7'
+        '| cut -d: -f 4,1'
+    )

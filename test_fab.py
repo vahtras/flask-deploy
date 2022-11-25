@@ -48,11 +48,11 @@ class TestFab:
         exists.side_effect = [True, True]
 
         with patch('fabfile.exists') as mock_exists:
-            with patch('fabfile.print') as mock_print:
+            with patch('fabfile.logging.info') as mock_print:
                 mock_exists.return_value = True
                 fabfile.configure_git(self.c, 'foo.bar')
 
-        mock_print.assert_called_once_with(
+        mock_print.assert_called_with(
             '/www/sites/foo.bar/git already exists'
         )
         self.c.sudo.assert_not_called()
@@ -89,9 +89,9 @@ class TestFab:
     def test_add_existing_remote(self, *args):
         with patch('fabfile.subprocess.run') as fsr:
             fsr.side_effect = fabfile.subprocess.CalledProcessError(1, 'yo')
-            with patch('fabfile.print') as fp:
+            with patch('fabfile.logging.info') as fp:
                 fabfile.add_remote(self.c, 'foo.bar')
-        fp.assert_called_once_with('Remote repository foo.bar exists')
+        fp.assert_called_with('Remote repository foo.bar exists')
 
     def test_add_remote_other(self, *args):
         with patch('fabfile.subprocess.run') as fsr:
@@ -120,10 +120,10 @@ class TestFab:
         exists.return_value = True
 
         with patch('fabfile.install_root'):
-            with patch('fabfile.print') as p:
+            with patch('fabfile.logging.info') as p:
                 fabfile.install_flask_work_tree(self.c, 'foo.bar')
         self.c.run.assert_not_called()
-        p.assert_called_once_with('/www/sites/foo.bar/src exists')
+        p.assert_called_with('/www/sites/foo.bar/src exists')
 
     def test_install_flask_and_not_exists(self, *args):
         exists, _ = args
@@ -239,7 +239,10 @@ class TestFab:
 
     def test_stop(self, *args):
         fabfile.stop_app(self.c, 'foo.bar')
-        self.c.sudo.assert_called_once_with('supervisorctl stop foo.bar')
+        self.c.sudo.assert_called_once_with(
+            'supervisorctl status foo.bar'
+            ' | grep RUNNING && supervisorctl stop foo.bar || exit 0'
+        )
 
     def test_status(self, *args):
         fabfile.status(self.c)
@@ -287,7 +290,11 @@ class TestFab:
             fabfile.clean(self.c, 'foo.bar')
 
         self.c.sudo.assert_has_calls([
-            call('supervisorctl stop foo.bar'),
+            call(
+                'supervisorctl status foo.bar'
+                ' | grep RUNNING && supervisorctl stop foo.bar || exit 0'
+            ),
+
             call('rm -rf /www/sites/foo.bar'),
             call('rm -f /etc/supervisor/conf.d/foo.bar.conf'),
             call('rm -f /etc/nginx/sites-available/foo.bar'),
@@ -295,7 +302,12 @@ class TestFab:
         ])
 
         mock_local.assert_has_calls([
-            call('git remote remove foo.bar'),
+            call(
+                'test -d .git'
+                ' && git remote show foo.bar'
+                ' && git remote remove foo.bar'
+                ' || exit 0'
+            ),
             call('rm -rf sites/foo.bar')
         ])
 
