@@ -13,22 +13,15 @@ from patchwork.files import exists
 
 from file_and_stream import logger
 
-"""
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(funcName)s:%(message)s",
-    filename='deploy.log',
-    filemode='w',
-)
-"""
-
 ##############
 #   config   #
 ##############
 
+
 DEPLOY_ROOT = "/home/www"
 DEPLOY_USER = os.environ.get('DEPLOY_USER', 'user')
 DEPLOY_HOST = os.environ.get('DEPLOY_HOST', 'deployhost')
+DEPLOY_SERVER = os.environ.get('DEPLOY_SERVER', 'gunicorn')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
@@ -65,6 +58,26 @@ def hi(c):
     local('echo "Hello world!"')
 
 
+@task
+def quickstart(c):
+    logger.info('quickstart')
+    site = input('site:')
+    deploy_host = input('Deploy host:')
+    deploy_user = input('Deploy user:')
+    module = input('Module:')
+    app = input('App:')
+    port = input('Port:')
+    with open('.envrc', 'a') as envrc:
+        envrc.write(f'export DEPLOY_HOST={deploy_host}\n')
+        envrc.write(f'export DEPLOY_USER={deploy_user}\n')
+        envrc.write(f'export FLASK_MODULE={module}\n')
+        envrc.write(f'export APP={app}\n')
+        envrc.write(f'export PORT={port}\n')
+        envrc.write(f'export SITE={site}\n')
+        envrc.write('export PYTHONPATH=flask-deploy\n')
+    local('direnv allow')
+
+
 ###########
 # install #
 ###########
@@ -87,7 +100,7 @@ def create(
     install_flask_work_tree(c, site, package=app)
     install_venv(c, site, version=3)
     add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
-    push_remote(c, site, branch='master')
+    push_remote(c, site, branch='master', force=False)
     generate_site_nginx(c, site, port=port)
     configure_nginx(c, site)
     generate_site_supervisor(c, site, module=module, app=app, port=port)
@@ -161,11 +174,37 @@ def configure_git(c, site, branch='master'):
     logger.info('Configure git')
 
     if not pathlib.Path('.git').is_dir():
+<<<<<<< HEAD
         logger.info("Initialize git locally first")
+=======
+        logger.info("Initializing git locally first")
+>>>>>>> origin/main
         local("git init .")
         local('echo *.pyc > .gitignore')
-        local("git add $FLASK_MODULE* config.py")
-        local("git commit -m 'initial commit'")
+        local('echo *.log >> .gitignore')
+        local('echo .envrc >> .gitignore')
+        local('echo flask-deploy >> .gitignore')
+        local('echo fabfile.py >> .gitignore')
+        local('git add .gitignore')
+
+        files = [
+            "app.py", "main.py", "config.py", "requirements.txt",
+            "requirements-dev.txt", "Makefile",
+        ]
+        dirs = ["app", "templates", "tests"]
+        for f in files:
+            local(f'test -f {f} && git add {f} || :')
+        for d in dirs:
+            local(f'test -d {d} && git add {d} || :')
+
+        local("git commit -am 'initialize git'")
+
+    git_status = local('git status', hide=True)
+    if "working tree clean" not in git_status.stdout:
+        logger.info("Local repository not clean")
+        print()
+        print(textwrap.indent(git_status.stdout, '    '))
+        print("Untracked files present - save to git before continuing")
         exit()
 
     remote = remote_git_dir(site)
@@ -204,7 +243,11 @@ def install_flask_work_tree(c, site, package="app"):
     else:
         c.run(f"mkdir -p {remote_flask_work_tree(site)}")
         c.run(
+<<<<<<< HEAD
             f"ln -sf"
+=======
+            "ln -sf"
+>>>>>>> origin/main
             f"  {remote_flask_work_tree(site)}/{package}/static"
             f" {remote_site_dir(site)}/static"
         )
@@ -309,7 +352,7 @@ def configure_supervisor(c, site):
 
 
 @task
-def reload_supervisor(c, site):
+def reload_supervisor(c):
     c.sudo("supervisorctl reread")
     c.sudo("supervisorctl update")
 
@@ -319,9 +362,15 @@ def start_app(c, site):
     """
     Run the app!
     """
+<<<<<<< HEAD
     cmd = f"supervisorctl start {site}"
     logger.debug(cmd)
     c.sudo(cmd)
+=======
+    logger.info('Start app')
+    c.sudo(f"supervisorctl start {site}")
+    c.sudo(f"supervisorctl status {site}")
+>>>>>>> origin/main
 
 
 @task
@@ -329,12 +378,16 @@ def stop_app(c, site):
     """
     Stop the app!
     """
+<<<<<<< HEAD
     logger.info(f'Stopping {site}')
     c.sudo(
         f"supervisorctl status {site} | grep RUNNING"
         f" && sudo supervisorctl stop {site}"
         " || exit 0"
     )
+=======
+    c.sudo(f"supervisorctl stop {site}")
+>>>>>>> origin/main
 
 
 @task
@@ -344,7 +397,11 @@ def restart_app(c, site):
     """
     logger.info(f'Restarting {site}')
     stop_app(c, site)
+<<<<<<< HEAD
     # reload_supervisor(c, site)
+=======
+    reload_supervisor(c)
+>>>>>>> origin/main
     start_app(c, site)
 
 
@@ -354,6 +411,7 @@ def restart_all(c, site):
     Restart nginx and app
     """
     restart_nginx(c)
+    reload_supervisor(c)
     restart_app(c, site)
 
 
@@ -390,7 +448,7 @@ def rollback(c, site):
 
 
 @task
-def clean(c, site):
+def clean_server(c, site):
     """
     Clear a configuration from server
     """
@@ -400,11 +458,20 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
+<<<<<<< HEAD
     local(
         f'test -d .git'
         f' && git remote remove {site}'
         f' || exit 0'
     )
+=======
+
+    clean_local(c, site)
+
+
+@task
+def clean_local(c, site):
+>>>>>>> origin/main
     local(f'rm -rf sites/{site}')
 
 
@@ -414,7 +481,11 @@ def install_cert(c, site):
     Generate and install letsencrypt cert
     """
     logger.info('Install cert')
+<<<<<<< HEAD
     c.sudo(f"certbot --nginx -d {site}")
+=======
+    c.sudo(f"certbot --nginx -d {site} -n")
+>>>>>>> origin/main
 
 
 @task
@@ -442,10 +513,22 @@ def generate_site_supervisor(
     port=8000,
     version="3",
     deploy_user=DEPLOY_USER,
+    deploy_server=DEPLOY_SERVER,
 ):
     """
     Generate configuration files for supervisor/gunicorn
     """
+    try:
+        import flask
+        server = flask.__name__
+    except ImportError:
+        try:
+            import fastapi
+            server = fastapi.__name__
+        except ImportError:
+            logger('No framework installed')
+            raise
+
     from template import SUPERVISOR
     logger.info('Generate supervisor')
     bindir = f"{remote_site_dir(site)}/venv{version}/bin"
@@ -457,7 +540,7 @@ def generate_site_supervisor(
 
     with open(f"sites/{site}/etc/supervisor/conf.d/{site}.conf", "w") as f:
         f.write(
-            SUPERVISOR.format(
+            SUPERVISOR[server].format(
                 program=site,
                 bin=bindir,
                 module=module,
@@ -465,6 +548,7 @@ def generate_site_supervisor(
                 port=port,
                 src=remote_flask_work_tree(site),
                 user=deploy_user,
+                server=deploy_server,
             )
         )
 
@@ -477,6 +561,7 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     """
     Define remote repo for site to track
     """
+<<<<<<< HEAD
     logger.info('Add remote')
     assert pathlib.Path('.git').is_dir(), \
         'Local git repository not initialized'
@@ -489,17 +574,35 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
         )
     except subprocess.CalledProcessError:
         logger.info(f"Remote repository {site} exists")
+=======
+    logger.info(f'Add remote {site}')
+    assert pathlib.Path('.git').is_dir(), (
+        'Local git repository not initialized'
+    )
+
+    local(
+        f"git remote add {site}"
+        f" {deploy_user}@{deploy_host}:{remote_git_dir(site)}",
+    )
+>>>>>>> origin/main
 
 
 @task
-def push_remote(c, site, branch='master'):
+def push_remote(c, site, branch='master', force=False):
     """
     Push to  remote repo
     """
     logger.info('Push to remote')
+<<<<<<< HEAD
     cmd = f"git push {site} {branch}"
     logger.debug(cmd)
     local(cmd)
+=======
+    push_opts = ""
+    if force:
+        push_opts = "-f"
+    subprocess.run(f"git push {push_opts} {site} {branch}", shell=True)
+>>>>>>> origin/main
 
 
 @task
@@ -520,5 +623,9 @@ def list_ports(c):
     c.run(
         'grep localhost  /etc/nginx/sites-enabled/*'
         ' | cut -d/ -f 5,7'
+<<<<<<< HEAD
         '| cut -d: -f 4,1'
+=======
+        ' | cut -d: -f 4,1'
+>>>>>>> origin/main
     )
