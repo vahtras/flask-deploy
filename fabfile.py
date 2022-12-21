@@ -2,22 +2,25 @@
 #   imports   #
 ###############
 
-import logging
 import os
 import pathlib
 import subprocess
 import textwrap
 
+
 from invoke import task, run as local
 from patchwork.files import exists
 
+from file_and_stream import logger
 
+"""
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s:%(funcName)s:%(message)s",
     filename='deploy.log',
     filemode='w',
 )
+"""
 
 ##############
 #   config   #
@@ -25,7 +28,7 @@ logging.basicConfig(
 
 DEPLOY_ROOT = "/home/www"
 DEPLOY_USER = os.environ.get('DEPLOY_USER', 'user')
-DEPLOY_HOST = os.environ.get('DEPLOYHOST', 'deployhost')
+DEPLOY_HOST = os.environ.get('DEPLOY_HOST', 'deployhost')
 DEPLOY_NGINX_DIR = "/etc/nginx/sites-available"
 DEPLOY_SUPERVISOR_DIR = "/etc/supervisor/conf.d"
 FLASK_MODULE = os.environ.get('FLASKMODULE', 'flask_project')
@@ -52,12 +55,13 @@ def remote_flask_work_tree(site):
 
 @task
 def hello(c):
+    logger.info('I am the world')
     c.run('echo "Hello world!"')
 
 
 @task
 def hi(c):
-    logging.info('hello')
+    logger.info('hello')
     local('echo "Hello world!"')
 
 
@@ -77,11 +81,11 @@ def create(
     """
     Install a deployment from scratch
     """
-    logging.info('Create from scratch')
+    logger.info('Create from scratch')
     # install_requirements(c)
     configure_git(c, site, branch='master')
     install_flask_work_tree(c, site, package=app)
-    install_venv(c, site, version=3.8)
+    install_venv(c, site, version=3)
     add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
     push_remote(c, site, branch='master')
     generate_site_nginx(c, site, port=port)
@@ -119,11 +123,11 @@ def install_site_dir(c, site):
 
 
 @task
-def install_venv(c, site, version="3.8"):
+def install_venv(c, site, version="3"):
     """
     Initialize virtual environment on deploy site
     """
-    logging.info('Install virtual env')
+    logger.info('Install virtual env')
     c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
     site_dir = f'{remote_site_dir(site)}'
     venv_dir = f'{site_dir}/venv{version}'
@@ -154,10 +158,10 @@ def configure_git(c, site, branch='master'):
     1. Setup bare Git repo
     2. Create post-receive hook
     """
-    logging.info('Configure git')
+    logger.info('Configure git')
 
     if not pathlib.Path('.git').is_dir():
-        logging.info("Initialize git locally first")
+        logger.info("Initialize git locally first")
         local("git init .")
         local('echo *.pyc > .gitignore')
         local("git add $FLASK_MODULE* config.py")
@@ -166,14 +170,15 @@ def configure_git(c, site, branch='master'):
 
     remote = remote_git_dir(site)
     if exists(c, remote):
-        logging.info(f"{remote} already exists")
+        logger.info(f"{remote} already exists")
     else:
-        logging.info("Creating: " + remote)
+        logger.info("Creating: " + remote)
         c.run(f"git init --bare {remote}")
         c.run(
             'echo "#!/bin/sh\n'
             f"GIT_WORK_TREE={remote_flask_work_tree(site)}"
-            f' git checkout {branch} --recurse-submodules -f" > {remote}/hooks/post-receive'
+            f' git checkout {branch} --recurse-submodules -f"'
+            f' > {remote}/hooks/post-receive'
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 
@@ -192,14 +197,16 @@ def install_flask_work_tree(c, site, package="app"):
     2. Create and activate a virtualenv
     3. Checkout from previously configured git repo
     """
-    logging.info('Install Flask work tree')
+    logger.info('Install Flask work tree')
 
     if exists(c, remote_flask_work_tree(site)):
-        logging.info(f"{remote_flask_work_tree(site)} exists")
+        logger.info(f"{remote_flask_work_tree(site)} exists")
     else:
         c.run(f"mkdir -p {remote_flask_work_tree(site)}")
         c.run(
-            f"ln -sf  {remote_flask_work_tree(site)}/{package}/static {remote_site_dir(site)}/static"
+            f"ln -sf"
+            f"  {remote_flask_work_tree(site)}/{package}/static"
+            f" {remote_site_dir(site)}/static"
         )
 
 
@@ -209,7 +216,7 @@ def install_root(c):
     Install root install directory
     """
     if exists(c, DEPLOY_ROOT):
-        logging.info(DEPLOY_ROOT)
+        logger.info(DEPLOY_ROOT)
     else:
         c.sudo(f"mkdir -p {DEPLOY_ROOT}")
         c.sudo(f"chown {DEPLOY_USER}:{DEPLOY_USER} {DEPLOY_ROOT}")
@@ -223,7 +230,7 @@ def install_root(c):
 @task
 def configure_nginx(c, site):
     """
-    Configure nginx 
+    Configure nginx
 
     1. Remove default nginx config file
     2. Create new config file
@@ -231,7 +238,7 @@ def configure_nginx(c, site):
     4. Copy local config to remote config
     5. Restart nginx
     """
-    logging.info('Configure nginx')
+    logger.info('Configure nginx')
     c.sudo("/etc/init.d/nginx start")
 
     disable_nginx_default(c)
@@ -287,15 +294,18 @@ def configure_supervisor(c, site):
     2. Copy local config to remote config
     3. Register new command
     """
-    logging.info('Configure supervisor')
+    logger.info('Configure supervisor')
 
     if exists(c, f"/etc/supervisor/conf.d/{site}.conf") is False:
-        c.put(f"./sites/{site}/etc/supervisor/conf.d/{site}.conf", f"/tmp/{site}.conf")
+        c.put(
+            f"./sites/{site}/etc/supervisor/conf.d/{site}.conf",
+            f"/tmp/{site}.conf"
+        )
         c.sudo(f"mv /tmp/{site}.conf /etc/supervisor/conf.d/{site}.conf")
         c.sudo("supervisorctl reread")
         c.sudo("supervisorctl update")
     else:
-        logging.info(f"/etc/supervisor/conf.d/{site}.conf already exists")
+        logger.info(f"/etc/supervisor/conf.d/{site}.conf already exists")
 
 
 @task
@@ -309,8 +319,9 @@ def start_app(c, site):
     """
     Run the app!
     """
-    logging.info('Start app')
-    c.sudo(f"supervisorctl start {site}")
+    cmd = f"supervisorctl start {site}"
+    logger.debug(cmd)
+    c.sudo(cmd)
 
 
 @task
@@ -318,9 +329,10 @@ def stop_app(c, site):
     """
     Stop the app!
     """
+    logger.info(f'Stopping {site}')
     c.sudo(
         f"supervisorctl status {site} | grep RUNNING"
-        f" && supervisorctl stop {site}"
+        f" && sudo supervisorctl stop {site}"
         " || exit 0"
     )
 
@@ -330,8 +342,9 @@ def restart_app(c, site):
     """
     Restart app (with stop/start)
     """
+    logger.info(f'Restarting {site}')
     stop_app(c, site)
-    reload_supervisor(c, site)
+    # reload_supervisor(c, site)
     start_app(c, site)
 
 
@@ -381,6 +394,7 @@ def clean(c, site):
     """
     Clear a configuration from server
     """
+    logger.info('clean up all')
     stop_app(c, site)
     c.sudo(f"rm -rf {remote_site_dir(site)}")
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
@@ -388,7 +402,6 @@ def clean(c, site):
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
     local(
         f'test -d .git'
-        f' && git remote show {site}'
         f' && git remote remove {site}'
         f' || exit 0'
     )
@@ -400,7 +413,7 @@ def install_cert(c, site):
     """
     Generate and install letsencrypt cert
     """
-    logging.info('Install cert')
+    logger.info('Install cert')
     c.sudo(f"certbot --nginx -d {site}")
 
 
@@ -410,7 +423,7 @@ def generate_site_nginx(c, site, port=8000):
     Generate configuration files for nginx
     """
     from template import NGINX
-    logging.info('Generate nginx')
+    logger.info('Generate nginx')
 
     # c.local(f'mkdir -p sites/{site}/etc/nginx/sites-available')
     try:
@@ -427,14 +440,14 @@ def generate_site_supervisor(
     module="flask_project",
     app="app",
     port=8000,
-    version="3.8",
+    version="3",
     deploy_user=DEPLOY_USER,
 ):
     """
     Generate configuration files for supervisor/gunicorn
     """
     from template import SUPERVISOR
-    logging.info('Generate supervisor')
+    logger.info('Generate supervisor')
     bindir = f"{remote_site_dir(site)}/venv{version}/bin"
 
     try:
@@ -464,7 +477,7 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     """
     Define remote repo for site to track
     """
-    logging.info('Add remote')
+    logger.info('Add remote')
     assert pathlib.Path('.git').is_dir(), \
         'Local git repository not initialized'
     try:
@@ -475,7 +488,7 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
             check=True,
         )
     except subprocess.CalledProcessError:
-        logging.info(f"Remote repository {site} exists")
+        logger.info(f"Remote repository {site} exists")
 
 
 @task
@@ -483,8 +496,10 @@ def push_remote(c, site, branch='master'):
     """
     Push to  remote repo
     """
-    logging.info('Push to remote')
-    subprocess.run(f"git push {site} {branch}", shell=True)
+    logger.info('Push to remote')
+    cmd = f"git push {site} {branch}"
+    logger.debug(cmd)
+    local(cmd)
 
 
 @task
