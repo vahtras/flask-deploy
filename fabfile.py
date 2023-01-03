@@ -465,7 +465,7 @@ def install_cert(c, site):
     Generate and install letsencrypt cert
     """
     logger.info('Install cert')
-    c.sudo(f"certbot --nginx -d {site} -n")
+    c.sudo(f"certbot --nginx -d {site} --keep --redirect")
 
 
 @task
