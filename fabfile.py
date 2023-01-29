@@ -119,7 +119,7 @@ def create(
     # install_requirements(c)
     configure_git(c, site, branch='master')
     install_flask_work_tree(c, site, package=app)
-    install_venv(c, site, version=3.8)
+    install_venv(c, site, version=3)
     add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
     push_remote(c, site, branch='master', force=False)
     generate_site_nginx(c, site, port=port)
@@ -142,13 +142,14 @@ def install_requirements(c):
     Supervisor
     Git
     """
-    c.sudo("apt-get update")
-    c.sudo("apt-get install -y python3")
-    c.sudo("apt-get install -y python3-pip")
-    c.sudo("apt-get install -y nginx")
-    c.sudo("apt-get install -y supervisor")
-    c.sudo("apt-get install -y git")
-    c.sudo("apt-get install python-certbot-nginx")
+    c.sudo("apt update")
+    c.sudo("apt install -y python3")
+    c.sudo("apt install -y python3-pip")
+    c.sudo("apt install -y nginx")
+    c.sudo("apt install -y supervisor")
+    c.sudo("apt install -y git")
+    c.sudo("apt install -y direnv")
+    c.sudo("apt install python-certbot-nginx")
 
 
 @task
@@ -157,7 +158,7 @@ def install_site_dir(c, site):
 
 
 @task
-def install_venv(c, site, version="3.8"):
+def install_venv(c, site, version="3"):
     """
     Initialize virtual environment on deploy site
     """
@@ -177,6 +178,7 @@ def install_venv(c, site, version="3.8"):
         echo source {venv_dir}/bin/activate > {site_dir}/.envrc
         echo export GIT_DIR={git_dir} >> {site_dir}/.envrc
         echo export GIT_WORK_TREE={work_dir} >> {site_dir}/.envrc
+        echo unset PS1 >> {site_dir}/.envrc
         """
     ))
 
@@ -457,6 +459,7 @@ def clean_server(c, site):
 @task
 def clean_local(c, site):
     local(f'rm -rf sites/{site}')
+    local(f'git remote remove {site}')
 
 
 @task
@@ -491,7 +494,7 @@ def generate_site_supervisor(
     module="flask_project",
     app="app",
     port=8000,
-    version="3.8",
+    version="3",
     deploy_user=DEPLOY_USER,
     deploy_server=DEPLOY_SERVER,
 ):
@@ -584,3 +587,8 @@ def list_ports(c):
         ' | cut -d/ -f 5,7'
         ' | cut -d: -f 4,1'
     )
+
+
+@task
+def db_upgrade(c, site):
+    c.run(f'cd {remote_flask_work_tree(site)} && pwd')
