@@ -174,11 +174,7 @@ def configure_git(c, site, branch='master'):
     logger.info('Configure git')
 
     if not pathlib.Path('.git').is_dir():
-<<<<<<< HEAD
-        logger.info("Initialize git locally first")
-=======
         logger.info("Initializing git locally first")
->>>>>>> origin/main
         local("git init .")
         local('echo *.pyc > .gitignore')
         local('echo *.log >> .gitignore')
@@ -199,13 +195,7 @@ def configure_git(c, site, branch='master'):
 
         local("git commit -am 'initialize git'")
 
-    git_status = local('git status', hide=True)
-    if "working tree clean" not in git_status.stdout:
-        logger.info("Local repository not clean")
-        print()
-        print(textwrap.indent(git_status.stdout, '    '))
-        print("Untracked files present - save to git before continuing")
-        exit()
+    assert_clean_workdir()
 
     remote = remote_git_dir(site)
     if exists(c, remote):
@@ -221,6 +211,14 @@ def configure_git(c, site, branch='master'):
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 
+def assert_clean_workdir():
+    git_status = local('git status', hide=True)
+    if "working tree clean" not in git_status.stdout:
+        logger.info("Local repository not clean")
+        print()
+        print(textwrap.indent(git_status.stdout, '    '))
+        print("Untracked files present - save to git before continuing")
+        exit()
 
 #########
 # flask #
@@ -243,11 +241,7 @@ def install_flask_work_tree(c, site, package="app"):
     else:
         c.run(f"mkdir -p {remote_flask_work_tree(site)}")
         c.run(
-<<<<<<< HEAD
-            f"ln -sf"
-=======
             "ln -sf"
->>>>>>> origin/main
             f"  {remote_flask_work_tree(site)}/{package}/static"
             f" {remote_site_dir(site)}/static"
         )
@@ -362,15 +356,9 @@ def start_app(c, site):
     """
     Run the app!
     """
-<<<<<<< HEAD
-    cmd = f"supervisorctl start {site}"
-    logger.debug(cmd)
-    c.sudo(cmd)
-=======
     logger.info('Start app')
     c.sudo(f"supervisorctl start {site}")
     c.sudo(f"supervisorctl status {site}")
->>>>>>> origin/main
 
 
 @task
@@ -378,16 +366,7 @@ def stop_app(c, site):
     """
     Stop the app!
     """
-<<<<<<< HEAD
-    logger.info(f'Stopping {site}')
-    c.sudo(
-        f"supervisorctl status {site} | grep RUNNING"
-        f" && sudo supervisorctl stop {site}"
-        " || exit 0"
-    )
-=======
     c.sudo(f"supervisorctl stop {site}")
->>>>>>> origin/main
 
 
 @task
@@ -397,11 +376,7 @@ def restart_app(c, site):
     """
     logger.info(f'Restarting {site}')
     stop_app(c, site)
-<<<<<<< HEAD
-    # reload_supervisor(c, site)
-=======
     reload_supervisor(c)
->>>>>>> origin/main
     start_app(c, site)
 
 
@@ -458,20 +433,11 @@ def clean_server(c, site):
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
-<<<<<<< HEAD
-    local(
-        f'test -d .git'
-        f' && git remote remove {site}'
-        f' || exit 0'
-    )
-=======
-
     clean_local(c, site)
 
 
 @task
 def clean_local(c, site):
->>>>>>> origin/main
     local(f'rm -rf sites/{site}')
 
 
@@ -481,11 +447,7 @@ def install_cert(c, site):
     Generate and install letsencrypt cert
     """
     logger.info('Install cert')
-<<<<<<< HEAD
-    c.sudo(f"certbot --nginx -d {site}")
-=======
     c.sudo(f"certbot --nginx -d {site} -n")
->>>>>>> origin/main
 
 
 @task
@@ -561,20 +523,11 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     """
     Define remote repo for site to track
     """
-<<<<<<< HEAD
-    logger.info('Add remote')
-    assert pathlib.Path('.git').is_dir(), \
-        'Local git repository not initialized'
-    try:
-        remote_repo = f"{deploy_user}@{deploy_host}:{remote_git_dir(site)}"
-        subprocess.run(
-            f"git remote add {site} {remote_repo}",
-            shell=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        logger.info(f"Remote repository {site} exists")
-=======
+
+    if exists(c, site):
+        logger.info(f"{site} already exists")
+        return
+
     logger.info(f'Add remote {site}')
     assert pathlib.Path('.git').is_dir(), (
         'Local git repository not initialized'
@@ -584,7 +537,6 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
         f"git remote add {site}"
         f" {deploy_user}@{deploy_host}:{remote_git_dir(site)}",
     )
->>>>>>> origin/main
 
 
 @task
@@ -593,16 +545,11 @@ def push_remote(c, site, branch='master', force=False):
     Push to  remote repo
     """
     logger.info('Push to remote')
-<<<<<<< HEAD
-    cmd = f"git push {site} {branch}"
-    logger.debug(cmd)
-    local(cmd)
-=======
     push_opts = ""
     if force:
         push_opts = "-f"
-    subprocess.run(f"git push {push_opts} {site} {branch}", shell=True)
->>>>>>> origin/main
+    # subprocess.run(f"git push {push_opts} {site} {branch}", shell=True)
+    local(f"git push {push_opts} {site} {branch}")
 
 
 @task
@@ -623,9 +570,5 @@ def list_ports(c):
     c.run(
         'grep localhost  /etc/nginx/sites-enabled/*'
         ' | cut -d/ -f 5,7'
-<<<<<<< HEAD
-        '| cut -d: -f 4,1'
-=======
         ' | cut -d: -f 4,1'
->>>>>>> origin/main
     )

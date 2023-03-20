@@ -47,8 +47,11 @@ class TestFab:
         exists, _ = args
         exists.side_effect = [True, True]
 
-        with patch('fabfile.exists') as mock_exists:
-            with patch('fabfile.logging.info') as mock_print:
+        with (
+            patch('fabfile.exists') as mock_exists,
+            patch('fabfile.logger.info') as mock_print,
+            patch('fabfile.assert_clean_workdir', return_value=True),
+        ):
                 mock_exists.return_value = True
                 fabfile.configure_git(self.c, 'foo.bar')
 
@@ -63,10 +66,14 @@ class TestFab:
         exists, _ = args
         exists.side_effect = [False, False]
 
-        fabfile.configure_git(self.c, 'foo.bar')
+        with patch('fabfile.assert_clean_workdir'):
+            fabfile.configure_git(self.c, 'foo.bar')
 
         post_receive_file = '/www/sites/foo.bar/git/hooks/post-receive'
-        post_receive_cmd = "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout master --recurse-submodules -f"
+        post_receive_cmd = (
+            "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout master"
+            " --recurse-submodules -f"
+        )
         self.c.run.assert_has_calls([
             call('git init --bare /www/sites/foo.bar/git'),
             call('echo "%s" > %s' % (post_receive_cmd, post_receive_file)),
@@ -76,39 +83,38 @@ class TestFab:
     def test_remote_git_dir(self, *args):
         assert fabfile.remote_git_dir('foo.bar') == '/www/sites/foo.bar/git'
 
-    def test_add_remote(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
+    def test_add_new_remote(self, *args):
+        with (
+            patch('fabfile.local') as mock_local,
+            patch('fabfile.exists', return_value=False),
+        ):
             fabfile.add_remote(
                 self.c, 'foo.bar', deploy_user='whom', deploy_host='where'
             )
-        fsr.assert_called_once_with(
-            'git remote add foo.bar whom@where:/www/sites/foo.bar/git',
-            shell=True, check=True
+        mock_local.assert_called_once_with(
+            'git remote add foo.bar whom@where:/www/sites/foo.bar/git'
         )
 
     def test_add_existing_remote(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
-            fsr.side_effect = fabfile.subprocess.CalledProcessError(1, 'yo')
-            with patch('fabfile.logging.info') as fp:
-                fabfile.add_remote(self.c, 'foo.bar')
-        fp.assert_called_with('Remote repository foo.bar exists')
+        with (
+            patch('fabfile.exists', return_value=True),
+            patch('fabfile.local'),
+            patch('fabfile.logger.info') as fp,
+        ):
+            fabfile.add_remote(self.c, 'foo.bar')
+        fp.assert_called_with('foo.bar already exists')
 
-    def test_add_remote_other(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
-            fabfile.add_remote(
-                self.c, 'foo.bar', deploy_user='whom', deploy_host='test.site'
-            )
-        fsr.assert_called_once_with(
-            'git remote add foo.bar whom@test.site:/www/sites/foo.bar/git',
-            shell=True, check=True
-        )
 
     def test_push_remote(self, *args):
-        with patch('fabfile.subprocess.run') as fsr:
+        with (
+            patch('fabfile.local') as mock_local,
+            patch('fabfile.logger.info') as fp,
+        ):
             fabfile.push_remote(self.c, 'foo.bar')
-        fsr.assert_called_once_with(
-            'git push foo.bar master',
-            shell=True
+
+        fp.assert_called_with('Push to remote')
+        mock_local.assert_called_once_with(
+            'git push  foo.bar master',
         )
 
 #########
@@ -120,7 +126,7 @@ class TestFab:
         exists.return_value = True
 
         with patch('fabfile.install_root'):
-            with patch('fabfile.logging.info') as p:
+            with patch('fabfile.logger.info') as p:
                 fabfile.install_flask_work_tree(self.c, 'foo.bar')
         self.c.run.assert_not_called()
         p.assert_called_with('/www/sites/foo.bar/src exists')
@@ -235,13 +241,15 @@ class TestFab:
 
     def test_run(self, *args):
         fabfile.start_app(self.c, 'foo.bar')
-        self.c.sudo.assert_called_once_with('supervisorctl start foo.bar')
+        self.c.sudo.assert_has_calls([
+            call('supervisorctl start foo.bar'),
+            call('supervisorctl status foo.bar'),
+        ])
 
     def test_stop(self, *args):
         fabfile.stop_app(self.c, 'foo.bar')
         self.c.sudo.assert_called_once_with(
-            'supervisorctl status foo.bar'
-            ' | grep RUNNING && supervisorctl stop foo.bar || exit 0'
+            'supervisorctl stop foo.bar'
         )
 
     def test_status(self, *args):
@@ -277,7 +285,7 @@ class TestFab:
     def test_install_cert(self, *args):
         fabfile.install_cert(self.c, 'foo.bar')
         self.c.sudo.assert_called_once_with(
-            'certbot --nginx -d foo.bar'
+            'certbot --nginx -d foo.bar -n'
         )
 
 #############
@@ -286,29 +294,15 @@ class TestFab:
 
     def test_clean(self, *args):
 
-        with patch('fabfile.local') as mock_local:
-            fabfile.clean(self.c, 'foo.bar')
+        with patch('fabfile.clean_local'):
+            fabfile.clean_server(self.c, 'foo.bar')
 
         self.c.sudo.assert_has_calls([
-            call(
-                'supervisorctl status foo.bar'
-                ' | grep RUNNING && supervisorctl stop foo.bar || exit 0'
-            ),
-
+            call('supervisorctl stop foo.bar'),
             call('rm -rf /www/sites/foo.bar'),
             call('rm -f /etc/supervisor/conf.d/foo.bar.conf'),
             call('rm -f /etc/nginx/sites-available/foo.bar'),
             call('rm -f /etc/nginx/sites-enabled/foo.bar'),
-        ])
-
-        mock_local.assert_has_calls([
-            call(
-                'test -d .git'
-                ' && git remote show foo.bar'
-                ' && git remote remove foo.bar'
-                ' || exit 0'
-            ),
-            call('rm -rf sites/foo.bar')
         ])
 
 # env
