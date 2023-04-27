@@ -2,38 +2,16 @@
 #   imports   #
 ###############
 
-import logging
 import os
+import re
 import pathlib
-import subprocess
 import textwrap
+
 
 from invoke import task, run as local
 from patchwork.files import exists
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter("%(levelname)s:%(funcName)s:%(message)s")
-
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-fh = logging.FileHandler('deploy.log')
-fh.setLevel(logging.INFO)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-
-
-@task
-def gitter(c):
-    logger.info('check status')
-    result = local('git status', hide=True)
-    if "working tree clean" not in result.stdout:
-        logger.info('not clean - Stopping')
-        exit()
-    logger.info('work tree clean')
+from file_and_stream import logger
 
 ##############
 #   config   #
@@ -70,6 +48,7 @@ def remote_flask_work_tree(site):
 
 @task
 def hello(c):
+    logger.info('I am the world')
     c.run('echo "Hello world!"')
 
 
@@ -96,6 +75,7 @@ def quickstart(c):
         envrc.write(f'export PORT={port}\n')
         envrc.write(f'export SITE={site}\n')
         envrc.write('export PYTHONPATH=flask-deploy\n')
+        envrc.write('unset PS1\n')
     local('direnv allow')
 
 
@@ -117,11 +97,11 @@ def create(
     """
     logger.info('Create from scratch')
     # install_requirements(c)
-    configure_git(c, site, branch='master')
+    configure_git(c, site, branch='main')
     install_flask_work_tree(c, site, package=app)
     install_venv(c, site, version=3)
     add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
-    push_remote(c, site, branch='master', force=False)
+    push_remote(c, site, branch='main', force=False)
     generate_site_nginx(c, site, port=port)
     configure_nginx(c, site)
     generate_site_supervisor(c, site, module=module, app=app, port=port)
@@ -142,14 +122,14 @@ def install_requirements(c):
     Supervisor
     Git
     """
-    c.sudo("apt update")
-    c.sudo("apt install -y python3")
-    c.sudo("apt install -y python3-pip")
-    c.sudo("apt install -y nginx")
-    c.sudo("apt install -y supervisor")
-    c.sudo("apt install -y git")
-    c.sudo("apt install -y direnv")
-    c.sudo("apt install python-certbot-nginx")
+    c.sudo("apt-get update")
+    c.sudo("apt-get install -y python3")
+    c.sudo("apt-get install -y python3-pip")
+    c.sudo("apt-get install -y python3-venv")
+    c.sudo("apt-get install -y nginx")
+    c.sudo("apt-get install -y supervisor")
+    c.sudo("apt-get install -y git")
+    c.sudo("apt-get install python-certbot-nginx")
 
 
 @task
@@ -189,7 +169,7 @@ def install_venv(c, site, version="3"):
 
 
 @task
-def configure_git(c, site, branch='master'):
+def configure_git(c, site, branch='main'):
     """
     1. Setup bare Git repo
     2. Create post-receive hook
@@ -218,13 +198,7 @@ def configure_git(c, site, branch='master'):
 
         local("git commit -am 'initialize git'")
 
-    git_status = local('git status', hide=True)
-    if "working tree clean" not in git_status.stdout:
-        logger.info("Local repository not clean")
-        print()
-        print(textwrap.indent(git_status.stdout, '    '))
-        print("Untracked files present - save to git before continuing")
-        exit()
+    assert_clean_workdir()
 
     remote = remote_git_dir(site)
     if exists(c, remote):
@@ -240,6 +214,14 @@ def configure_git(c, site, branch='master'):
         )
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 
+def assert_clean_workdir():
+    git_status = local('git status', hide=True)
+    if "working tree clean" not in git_status.stdout:
+        logger.info("Local repository not clean")
+        print()
+        print(textwrap.indent(git_status.stdout, '    '))
+        print("Untracked files present - save to git before continuing")
+        exit()
 
 #########
 # flask #
@@ -378,7 +360,10 @@ def start_app(c, site):
     Run the app!
     """
     logger.info('Start app')
-    c.sudo(f"supervisorctl start {site}")
+    status = c.sudo("supervisorctl status", hide=True)
+    if re.search(fr'\n{site}\s+RUNNING', status.stdout):
+        logger.info(f'{site} is already running')
+        return
     c.sudo(f"supervisorctl status {site}")
 
 
@@ -387,7 +372,10 @@ def stop_app(c, site):
     """
     Stop the app!
     """
-    c.sudo(f"supervisorctl stop {site}")
+    status = c.sudo("supervisorctl status", hide=True)
+    if re.search(fr'\n{site}\s+RUNNING', status.stdout):
+        c.sudo(f"supervisorctl stop {site}")
+    logger.info(f"{site} is not running")
 
 
 @task
@@ -395,6 +383,7 @@ def restart_app(c, site):
     """
     Restart app (with stop/start)
     """
+    logger.info(f'Restarting {site}')
     stop_app(c, site)
     reload_supervisor(c)
     start_app(c, site)
@@ -427,7 +416,7 @@ def deploy(c, app, repo="production"):
     local("git add -A")
     commit_message = c.prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
-    local("git push %s master" % repo)
+    local("git push %s main" % repo)
     c.sudo("supervisorctl restart %s" % app)
 
 
@@ -437,29 +426,32 @@ def rollback(c, site):
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    local("git revert master --no-edit")
-    local(f"git push {site} master")
+    local("git revert main --no-edit")
+    local(f"git push {site} main")
     c.sudo(f"supervisorctl restart {site}")
 
+@task
+def clean(c, site):
+    clean_server(c, site)
+    clean_local(c, site)
 
 @task
 def clean_server(c, site):
     """
     Clear a configuration from server
     """
+    logger.info('clean up all')
     stop_app(c, site)
     c.sudo(f"rm -rf {remote_site_dir(site)}")
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
 
-    clean_local(c, site)
-
 
 @task
 def clean_local(c, site):
     local(f'rm -rf sites/{site}')
-    local(f'git remote remove {site}')
+    rm_remote(c, site)
 
 
 @task
@@ -468,7 +460,7 @@ def install_cert(c, site):
     Generate and install letsencrypt cert
     """
     logger.info('Install cert')
-    c.sudo(f"certbot --nginx -d {site} --keep --redirect")
+    c.sudo(f"certbot --nginx -d {site} -n")
 
 
 @task
@@ -544,6 +536,12 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     """
     Define remote repo for site to track
     """
+
+    status = local(f'git remote get-url {site} || :', hide=True)
+    if "No such remote" not in status.stderr:
+        logger.info(f'Remote {site} exists')
+        return
+
     logger.info(f'Add remote {site}')
     assert pathlib.Path('.git').is_dir(), (
         'Local git repository not initialized'
@@ -556,7 +554,22 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
 
 
 @task
-def push_remote(c, site, branch='master', force=False):
+def rm_remote(c, site):
+    """
+    Remove remote repo
+    """
+
+    logger.info(f'Remove remote {site}')
+    status = local(f'git remote get-url {site} || :', hide=True)
+    if "No such remote" not in status.stderr:
+        local(f"git remote remove {site}")
+        return
+    logger.info(f'{site} does not exist')
+
+
+
+@task
+def push_remote(c, site, branch='main', force=False):
     """
     Push to  remote repo
     """
@@ -564,7 +577,8 @@ def push_remote(c, site, branch='master', force=False):
     push_opts = ""
     if force:
         push_opts = "-f"
-    subprocess.run(f"git push {push_opts} {site} {branch}", shell=True)
+    # subprocess.run(f"git push {push_opts} {site} {branch}", shell=True)
+    local(f"git push {push_opts} {site} {branch}")
 
 
 @task
@@ -587,8 +601,3 @@ def list_ports(c):
         ' | cut -d/ -f 5,7'
         ' | cut -d: -f 4,1'
     )
-
-
-@task
-def db_upgrade(c, site):
-    c.run(f'cd {remote_flask_work_tree(site)} && pwd')

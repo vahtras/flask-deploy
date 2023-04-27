@@ -37,6 +37,9 @@ install-venv:
 add-remote:
 	fab add-remote $$SITE --deploy-user $$DEPLOY_USER --deploy-host $$DEPLOY_HOST
 
+rm-remote:
+	fab rm-remote $$SITE
+
 push-remote:
 	fab push-remote $$SITE
 
@@ -73,6 +76,12 @@ install-cert:
 
 clean-server:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean-server $$SITE
+
+clean-local:
+	fab --hosts $$DEPLOY_HOST clean-local $$SITE
+
+clean:
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean $$SITE
 
 status:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password status
