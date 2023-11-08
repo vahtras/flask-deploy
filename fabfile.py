@@ -4,14 +4,19 @@
 
 import os
 import pathlib
-import subprocess
 import textwrap
 
+#python 3.11 fix
+import inspect
+if not hasattr(inspect, 'getargspec'):
+    inspect.getargspec = inspect.getfullargspec
+###
 
 from invoke import task, run as local
 from patchwork.files import exists
 
 from file_and_stream import logger
+
 
 ##############
 #   config   #
@@ -75,6 +80,7 @@ def quickstart(c):
         envrc.write(f'export PORT={port}\n')
         envrc.write(f'export SITE={site}\n')
         envrc.write('export PYTHONPATH=flask-deploy\n')
+        envrc.write('unset PS1\n')
     local('direnv allow')
 
 
@@ -96,11 +102,11 @@ def create(
     """
     logger.info('Create from scratch')
     # install_requirements(c)
-    configure_git(c, site, branch='master')
+    configure_git(c, site, branch='main')
     install_flask_work_tree(c, site, package=app)
     install_venv(c, site, version=3)
     add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST)
-    push_remote(c, site, branch='master', force=False)
+    push_remote(c, site, branch='main', force=False)
     generate_site_nginx(c, site, port=port)
     configure_nginx(c, site)
     generate_site_supervisor(c, site, module=module, app=app, port=port)
@@ -124,6 +130,7 @@ def install_requirements(c):
     c.sudo("apt-get update")
     c.sudo("apt-get install -y python3")
     c.sudo("apt-get install -y python3-pip")
+    c.sudo("apt-get install -y python3-venv")
     c.sudo("apt-get install -y nginx")
     c.sudo("apt-get install -y supervisor")
     c.sudo("apt-get install -y git")
@@ -156,6 +163,7 @@ def install_venv(c, site, version="3"):
         echo source {venv_dir}/bin/activate > {site_dir}/.envrc
         echo export GIT_DIR={git_dir} >> {site_dir}/.envrc
         echo export GIT_WORK_TREE={work_dir} >> {site_dir}/.envrc
+        echo unset PS1 >> {site_dir}/.envrc
         """
     ))
 
@@ -166,7 +174,7 @@ def install_venv(c, site, version="3"):
 
 
 @task
-def configure_git(c, site, branch='master'):
+def configure_git(c, site, branch='main'):
     """
     1. Setup bare Git repo
     2. Create post-receive hook
@@ -407,7 +415,7 @@ def deploy(c, app, repo="production"):
     local("git add -A")
     commit_message = c.prompt("Commit message?")
     local('git commit -am "{0}"'.format(commit_message))
-    local("git push %s master" % repo)
+    local("git push %s main" % repo)
     c.sudo("supervisorctl restart %s" % app)
 
 
@@ -417,8 +425,8 @@ def rollback(c, site):
     1. Quick rollback in case of error
     2. Restart gunicorn via supervisor
     """
-    local("git revert master --no-edit")
-    local(f"git push {site} master")
+    local("git revert main --no-edit")
+    local(f"git push {site} main")
     c.sudo(f"supervisorctl restart {site}")
 
 
@@ -524,8 +532,9 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
     Define remote repo for site to track
     """
 
-    if exists(c, site):
-        logger.info(f"{site} already exists")
+    status = local(f'git remote get-url {site} || :', hide=True)
+    if "No such remote" not in status.stderr:
+        logger.info(f'Remote {site} exists')
         return
 
     logger.info(f'Add remote {site}')
@@ -540,7 +549,7 @@ def add_remote(c, site, deploy_user=DEPLOY_USER, deploy_host=DEPLOY_HOST):
 
 
 @task
-def push_remote(c, site, branch='master', force=False):
+def push_remote(c, site, branch='main', force=False):
     """
     Push to  remote repo
     """

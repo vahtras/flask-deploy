@@ -37,6 +37,7 @@ class TestFab:
             echo source /www/sites/foo.bar/venv3.8/bin/activate > /www/sites/foo.bar/.envrc
             echo export GIT_DIR=/www/sites/foo.bar/git >> /www/sites/foo.bar/.envrc
             echo export GIT_WORK_TREE=/www/sites/foo.bar/src >> /www/sites/foo.bar/.envrc
+            echo unset PS1 >> /www/sites/foo.bar/.envrc
             """
         ))
 #######
@@ -71,7 +72,7 @@ class TestFab:
 
         post_receive_file = '/www/sites/foo.bar/git/hooks/post-receive'
         post_receive_cmd = (
-            "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout master"
+            "#!/bin/sh\nGIT_WORK_TREE=/www/sites/foo.bar/src git checkout main"
             " --recurse-submodules -f"
         )
         self.c.run.assert_has_calls([
@@ -91,8 +92,8 @@ class TestFab:
             fabfile.add_remote(
                 self.c, 'foo.bar', deploy_user='whom', deploy_host='where'
             )
-        mock_local.assert_called_once_with(
-            'git remote add foo.bar whom@where:/www/sites/foo.bar/git'
+        mock_local.assert_called_with(
+                'git remote get-url foo.bar || :', hide=True
         )
 
     def test_add_existing_remote(self, *args):
@@ -102,7 +103,7 @@ class TestFab:
             patch('fabfile.logger.info') as fp,
         ):
             fabfile.add_remote(self.c, 'foo.bar')
-        fp.assert_called_with('foo.bar already exists')
+        fp.assert_called_with('Remote foo.bar exists')
 
 
     def test_push_remote(self, *args):
@@ -114,7 +115,7 @@ class TestFab:
 
         fp.assert_called_with('Push to remote')
         mock_local.assert_called_once_with(
-            'git push  foo.bar master',
+            'git push  foo.bar main',
         )
 
 #########
@@ -273,8 +274,8 @@ class TestFab:
             fabfile.rollback(self.c, 'foo.bar')
 
         mock_local.assert_has_calls([
-            call('git revert master --no-edit'),
-            call('git push foo.bar master')
+            call('git revert main --no-edit'),
+            call('git push foo.bar main')
         ])
         self.c.sudo.assert_called_once_with('supervisorctl restart foo.bar')
 

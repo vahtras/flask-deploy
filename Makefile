@@ -31,6 +31,9 @@ configure-git:
 install-flask-work-tree:
 	fab --hosts $$DEPLOY_HOST install-flask-work-tree $$SITE
 
+install-reqs:
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password install-requirements
+
 install-venv:
 	fab --hosts $$DEPLOY_HOST install-venv $$SITE
 
