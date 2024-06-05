@@ -447,6 +447,7 @@ def clean_server(c, site):
 @task
 def clean_local(c, site):
     local(f'rm -rf sites/{site}')
+    local(f'git remote remove {site}')
 
 
 @task
