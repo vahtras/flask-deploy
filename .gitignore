@@ -11,3 +11,4 @@ sites
 build
 dist
 *.egg-info
+*.log
