@@ -12,7 +12,7 @@ import fabfile
 @patch('fabfile.exists')
 class TestFab:
 
-    def setup(self):
+    def setup_method(self):
         self.c = MagicMock()
 
     def test_hello(self, *args):

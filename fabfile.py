@@ -497,7 +497,7 @@ def generate_site_supervisor(
             import fastapi
             server = fastapi.__name__
         except ImportError:
-            logger('No framework installed')
+            logger.info('No framework installed')
             raise
 
     from template import SUPERVISOR
