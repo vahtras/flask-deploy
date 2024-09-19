@@ -434,21 +434,30 @@ def rollback(c, site):
 
 
 @task
+def clean_all(c, site):
+    """
+    Clear all configuration
+    """
+    logger.info('clean up all')
+    clean_server(c, site)
+    clean_local(c, site)
+
+@task
 def clean_server(c, site):
     """
     Clear a configuration from server
     """
-    logger.info('clean up all')
+    logger.info('clean up server')
     stop_app(c, site)
     c.sudo(f"rm -rf {remote_site_dir(site)}")
     c.sudo(f"rm -f /etc/supervisor/conf.d/{site}.conf")
     c.sudo(f"rm -f /etc/nginx/sites-available/{site}")
     c.sudo(f"rm -f /etc/nginx/sites-enabled/{site}")
-    clean_local(c, site)
 
 
 @task
 def clean_local(c, site):
+    logger.info('clean up locally')
     local(f'rm -rf sites/{site}')
     local(f'git remote remove {site}')
 
