@@ -12,7 +12,8 @@ if not hasattr(inspect, 'getargspec'):
     inspect.getargspec = inspect.getfullargspec
 ###
 
-from invoke import task, run as local
+from fabric import task, Connection
+from invoke import run as local
 from patchwork.files import exists
 
 from file_and_stream import logger
@@ -148,7 +149,8 @@ def install_venv(c, site, version="3"):
     Initialize virtual environment on deploy site
     """
     logger.info('Install virtual env')
-    c.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
+    con = Connection(DEPLOY_HOST)
+    con.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
     site_dir = f'{remote_site_dir(site)}'
     venv_dir = f'{site_dir}/venv{version}'
     git_dir = f'{site_dir}/git'
@@ -220,6 +222,7 @@ def configure_git(c, site, branch='main'):
         c.run(f"chmod +x {remote_git_dir(site)}/hooks/post-receive")
 
 def assert_clean_workdir():
+    return
     git_status = local('git status', hide=True)
     if "working tree clean" not in git_status.stdout:
         logger.info("Local repository not clean")

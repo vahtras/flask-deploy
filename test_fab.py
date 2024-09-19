@@ -4,6 +4,7 @@ import textwrap
 import fabfile
 
 
+@patch('fabfile.Connection')
 @patch('fabfile.DEPLOY_ROOT', '/www')
 # @patch('fabfile.SERVER_IP', '123.456.789.00')
 @patch('fabfile.DEPLOY_USER', 'whom')
@@ -45,7 +46,7 @@ class TestFab:
 #######
 
     def test_configure_git_exists(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.side_effect = [True, True]
 
         with (
@@ -64,7 +65,7 @@ class TestFab:
         self.c.run.assert_not_called()
 
     def test_configure_git_new(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.side_effect = [False, False]
 
         with patch('fabfile.assert_clean_workdir'):
@@ -123,7 +124,7 @@ class TestFab:
 #########
 
     def test_install_flask_and_exists(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.return_value = True
 
         with patch('fabfile.install_root'):
@@ -133,7 +134,7 @@ class TestFab:
         p.assert_called_with('/www/sites/foo.bar/src exists')
 
     def test_install_flask_and_not_exists(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.return_value = False
 
         with patch('fabfile.install_root'):
@@ -151,7 +152,7 @@ class TestFab:
         assert fabfile.remote_flask_work_tree('foo.bar') == '/www/sites/foo.bar/src'
 
     def test_install_root(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.return_value = False
         fabfile.install_root(self.c)
         self.c.sudo.assert_has_calls([
@@ -167,7 +168,7 @@ class TestFab:
 #########
 
     def test_configure_nginx(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.side_effect = [True, True]
 
         with patch('fabfile.disable_nginx_default'):
@@ -185,7 +186,7 @@ class TestFab:
         )
 
     def test_disable_default(self, *args):
-        exists, _ = args
+        exists, *_ = args
 
         exists.return_value = False
         fabfile.disable_nginx_default(self.c)
@@ -217,7 +218,7 @@ class TestFab:
 ##############
 
     def test_configure_supervisor1(self, *args):
-        exists, _ = args
+        exists, *_ = args
         exists.return_value = True
 
         fabfile.configure_supervisor(self.c, 'foo.bar')
