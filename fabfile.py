@@ -93,8 +93,7 @@ def quickstart(c):
 @task
 def create(
     c, site,
-    module=FLASK_MODULE,
-    app=APP,
+    flask_app=f'{FLASK_MODULE}.{APP}',
     port=PORT,
     deploy_user=DEPLOY_USER
 ):
@@ -102,6 +101,7 @@ def create(
     Install a deployment from scratch
     """
     logger.info('Create from scratch')
+    module, app = flask_app.split('.')
     # install_requirements(c)
     configure_git(c, site, branch='main')
     install_flask_work_tree(c, site, package=app)
