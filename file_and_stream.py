@@ -1,17 +1,21 @@
 import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(levelname)s:%(funcName)s:%(message)s")
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+def stream_handler():
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(formatter)
+    return ch
 
-fh = logging.FileHandler('deploy.log')
-fh.setLevel(logging.DEBUG)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+def file_handler(logfile):
+    fh = logging.FileHandler(logfile)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    return fh
+
+def file_and_stream(logger, logfile):
+    logger.addHandler(stream_handler())
+    logger.addHandler(file_handler(logfile))
 
 
 def f():
@@ -20,4 +24,7 @@ def f():
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    file_and_stream(logger, 'my.log')
     f()
