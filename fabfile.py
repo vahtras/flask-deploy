@@ -134,19 +134,19 @@ def install_requirements(c):
     """
     Install required packages.
 
+    uv
     Python
-    Gunicorn
+    Nginx
     Supervisor
     Git
     """
-    c.sudo("apt-get update")
-    c.sudo("apt-get install -y python3")
-    c.sudo("apt-get install -y python3-pip")
-    c.sudo("apt-get install -y python3-venv")
-    c.sudo("apt-get install -y nginx")
-    c.sudo("apt-get install -y supervisor")
-    c.sudo("apt-get install -y git")
-    c.sudo("apt-get install python-certbot-nginx")
+    c.run("curl -LsSf https://astral.sh/uv/install.sh | sh")
+    c.run(f"~{DEPLOY_USER}/.local/bin/uv python install --default")
+    #c.sudo("apt-get update")
+    #c.sudo("apt-get install -y nginx")
+    #c.sudo("apt-get install -y supervisor")
+    #c.sudo("apt-get install -y git")
+    #c.sudo("apt-get install python-certbot-nginx")
 
 
 @task
@@ -161,18 +161,21 @@ def install_venv(c, site, version="3"):
     """
     logger.info('Install virtual env')
     con = Connection(DEPLOY_HOST)
-    con.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
+    #con.put("./requirements.txt", f"{remote_site_dir(site)}/requirements.txt")
+    con.put("./pyproject.toml", f"{remote_site_dir(site)}/pyproject.toml")
     site_dir = f'{remote_site_dir(site)}'
-    venv_dir = f'{site_dir}/venv{version}'
+    venv_dir = f'{site_dir}/.venv'
     git_dir = f'{site_dir}/git'
     work_dir = f'{site_dir}/src'
-    py = f'{venv_dir}/bin/python'
-    pip = f'{py} -m pip'
+    #py = f'{venv_dir}/bin/python'
+    #pip = f'{py} -m pip'
     c.run(textwrap.dedent(
         f"""\
-        python{version} -m venv {venv_dir}
-        {pip} install --upgrade pip setuptools
-        {pip} install -r {remote_site_dir(site)}/requirements.txt
+        cd {site_dir}
+        ~/.local/bin/uv venv {venv_dir}
+        source {venv_dir}/bin/activate
+        ~/.local/bin/uv sync
+
         echo source {venv_dir}/bin/activate > {site_dir}/.envrc
         echo export GIT_DIR={git_dir} >> {site_dir}/.envrc
         echo export GIT_WORK_TREE={work_dir} >> {site_dir}/.envrc
@@ -253,8 +256,6 @@ def install_flask_work_tree(c, site, package="app"):
     Install Flask project
 
     1. Create project directories
-    2. Create and activate a virtualenv
-    3. Checkout from previously configured git repo
     """
     logger.info('Install Flask work tree')
 
@@ -525,7 +526,7 @@ def generate_site_supervisor(
 
     from template import SUPERVISOR
     logger.info('Generate supervisor')
-    bindir = f"{remote_site_dir(site)}/venv{version}/bin"
+    bindir = f"{remote_site_dir(site)}/.venv/bin"
 
     try:
         os.makedirs(f"sites/{site}/etc/supervisor/conf.d")

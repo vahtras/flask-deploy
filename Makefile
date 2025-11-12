@@ -11,6 +11,7 @@ default:
 	@echo "generate-site-nginx:	$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.generate_site_nginx.__doc__, "    "))')"
 	@echo "install-cert:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_cert.__doc__, "    "))')"
 	@echo "install-flask-work-tree:	$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_flask_work_tree.__doc__, "    "))')"
+	@echo "install-requirements:	$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_requirements.__doc__, "    "))')"
 	@echo "install-venv:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_venv.__doc__, "    "))')"
 	@echo "list-ports:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.list_ports.__doc__, "    "))')"
 	@echo "push-remote:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.push_remote.__doc__, "    "))')"
@@ -31,7 +32,7 @@ configure-git:
 install-flask-work-tree:
 	fab --hosts $$DEPLOY_HOST install-flask-work-tree $$SITE
 
-install-reqs:
+install-requirements:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password install-requirements
 
 install-venv:
