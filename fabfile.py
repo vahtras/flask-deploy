@@ -14,9 +14,20 @@ if not hasattr(inspect, 'getargspec'):
 
 from fabric import task, Connection
 from invoke import run as local
-from patchwork.files import exists
+# from patchwork.files import exists
 
-from file_and_stream import logger
+import logging
+import file_and_stream
+
+logger = logging.getLogger(__name__)
+file_and_stream.file_and_stream(logger, 'deploy.log')
+
+def exists(c, path):
+    """
+    Check if a file or directory exists on remote host
+    """
+    result = c.run(f'test -e {path}', warn=True, hide=True)
+    return result.ok
 
 
 ##############
