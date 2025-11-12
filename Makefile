@@ -23,7 +23,7 @@ default:
 local:
 	FLASK_APP=$$FLASK_MODULE flask run
 create:
-	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password create $$SITE --module $$FLASK_MODULE --app $$APP --port $$PORT
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password create $$SITE --flask-app $$FLASK_MODULE.$$APP --port $$PORT
 
 configure-git:
 	fab --hosts $$DEPLOY_HOST configure-git $$SITE
