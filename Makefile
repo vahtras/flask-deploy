@@ -4,21 +4,21 @@ default:
 	@echo "local:$$(python -c 'import fabfile; print(fabfile.local.__doc__)')"
 	@echo "Remote commands"
 	@echo "──────────────"
-	@echo "add-remote:	$$(python -c 'import fabfile; print(fabfile.add_remote.__doc__)')"
-	@echo "clean-server:	$$(python -c 'import fabfile; print(fabfile.clean_server.__doc__)')"
-	@echo "configure-git:	$$(python -c 'import fabfile; print(fabfile.configure_git.__doc__)')"
-	@echo "create:	$$(python -c 'import fabfile; print(fabfile.create.__doc__)')"
-	@echo "generate-site-nginx:	$$(python -c 'import fabfile; print(fabfile.generate_site_nginx.__doc__)')"
-	@echo "install-cert:	$$(python -c 'import fabfile; print(fabfile.install_cert.__doc__)')"
-	@echo "install-flask-work-tree:	$$(python -c 'import fabfile; print(fabfile.install_flask_work_tree.__doc__)')"
-	@echo "install-venv:	$$(python -c 'import fabfile; print(fabfile.install_venv.__doc__)')"
-	@echo "list-ports:	$$(python -c 'import fabfile; print(fabfile.list_ports.__doc__)')"
-	@echo "push-remote:	$$(python -c 'import fabfile; print(fabfile.push_remote.__doc__)')"
-	@echo "start-app:	$$(python -c 'import fabfile; print(fabfile.start_app.__doc__)')"
-	@echo "stop-app:	$$(python -c 'import fabfile; print(fabfile.stop_app.__doc__)')"
-	@echo "restart-app:	$$(python -c 'import fabfile; print(fabfile.restart_app.__doc__)')"
-	@echo "restart-all:	$$(python -c 'import fabfile; print(fabfile.restart_all.__doc__)')"
-	@echo "status:	$$(python -c 'import fabfile; print(fabfile.status.__doc__)')"
+	@echo "add-remote:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.add_remote.__doc__, "    "))')"
+	@echo "clean-server:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.clean_server.__doc__, "    "))')"
+	@echo "configure-git:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.configure_git.__doc__, "    "))')"
+	@echo "create:			$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.create.__doc__, "    "))')"
+	@echo "generate-site-nginx:	$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.generate_site_nginx.__doc__, "    "))')"
+	@echo "install-cert:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_cert.__doc__, "    "))')"
+	@echo "install-flask-work-tree:	$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_flask_work_tree.__doc__, "    "))')"
+	@echo "install-venv:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.install_venv.__doc__, "    "))')"
+	@echo "list-ports:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.list_ports.__doc__, "    "))')"
+	@echo "push-remote:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.push_remote.__doc__, "    "))')"
+	@echo "start-app:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.start_app.__doc__, "    "))')"
+	@echo "stop-app:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.stop_app.__doc__, "    "))')"
+	@echo "restart-app:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.restart_app.__doc__, "    "))')"
+	@echo "restart-all:		$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.restart_all.__doc__, "    "))')"
+	@echo "status:			$$(python -c 'import textwrap, fabfile; print(textwrap.indent(fabfile.status.__doc__, "    "))')"
 
 local:
 	FLASK_APP=$$FLASK_MODULE flask run
@@ -73,6 +73,9 @@ restart-all:
 
 install-cert:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password install-cert $$SITE
+
+clean-all:
+	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean-all $$SITE
 
 clean-server:
 	fab --hosts $$DEPLOY_HOST --prompt-for-sudo-password clean-server $$SITE
