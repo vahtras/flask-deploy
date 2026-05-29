@@ -289,6 +289,7 @@ fastapi = [
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
+    { name = "pytest-regex" },
 ]
 
 [package.metadata]
@@ -301,7 +302,10 @@ requires-dist = [
 provides-extras = ["fastapi"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.0" }]
+dev = [
+    { name = "pytest", specifier = ">=9.0.0" },
+    { name = "pytest-regex", specifier = ">=0.2.0" },
+]
 
 [[package]]
 name = "gunicorn"
@@ -549,6 +553,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/da/1d/eb34f286b164c5e431a810a38697409cca1112cee04b287bb56ac486730b/pytest-9.0.0.tar.gz", hash = "sha256:8f44522eafe4137b0f35c9ce3072931a788a21ee40a2ed279e817d3cc16ed21e", size = 1562764, upload-time = "2025-11-08T17:25:33.34Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/99/cafef234114a3b6d9f3aaed0723b437c40c57bdb7b3e4c3a575bc4890052/pytest-9.0.0-py3-none-any.whl", hash = "sha256:e5ccdf10b0bac554970ee88fc1a4ad0ee5d221f8ef22321f9b7e4584e19d7f96", size = 373364, upload-time = "2025-11-08T17:25:31.811Z" },
+]
+
+[[package]]
+name = "pytest-regex"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/67/e3f3700e8f95fc9e80ab83d589346c117de4e6d01e6b922f7300282e7fc9/pytest-regex-0.2.0.tar.gz", hash = "sha256:f4076c49abece2503815c8b2e282a8fd22d330f06f9bf91d620b3ef02de7a353", size = 4097, upload-time = "2023-05-29T22:08:11.071Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/72/d4143c66c1806599358c119c0af530bab92ef0c48129f17522dfd5a7ff6a/pytest_regex-0.2.0-py3-none-any.whl", hash = "sha256:c97e9c49e8c7e7482bd1fa701e3a5cccd18eb78d263752e32dba4937d8cee6d9", size = 3824, upload-time = "2023-05-29T22:08:09.551Z" },
 ]
 
 [[package]]

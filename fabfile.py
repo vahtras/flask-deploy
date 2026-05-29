@@ -172,14 +172,11 @@ def install_venv(c, site, version="3"):
     c.run(textwrap.dedent(
         f"""\
         cd {site_dir}
-        ~/.local/bin/uv venv {venv_dir}
-        source {venv_dir}/bin/activate
         ~/.local/bin/uv sync
 
         echo source {venv_dir}/bin/activate > {site_dir}/.envrc
         echo export GIT_DIR={git_dir} >> {site_dir}/.envrc
         echo export GIT_WORK_TREE={work_dir} >> {site_dir}/.envrc
-        echo unset PS1 >> {site_dir}/.envrc
         """
     ))
 
@@ -506,7 +503,6 @@ def generate_site_supervisor(
     module="flask_project",
     app="app",
     port=8000,
-    version="3",
     deploy_user=DEPLOY_USER,
     deploy_server=DEPLOY_SERVER,
 ):

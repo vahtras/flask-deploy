@@ -29,16 +29,15 @@ class TestFab:
         self.c.run.assert_called_once_with('mkdir -p /www/sites/foo.bar')
 
     def test_install_venv(self, *args):
-        fabfile.install_venv(self.c, 'foo.bar', version="3.8")
+        fabfile.install_venv(self.c, 'foo.bar')
         self.c.run.assert_called_once_with(textwrap.dedent(
             """\
-            python3.8 -m venv /www/sites/foo.bar/venv3.8
-            /www/sites/foo.bar/venv3.8/bin/python -m pip install --upgrade pip setuptools
-            /www/sites/foo.bar/venv3.8/bin/python -m pip install -r /www/sites/foo.bar/requirements.txt
-            echo source /www/sites/foo.bar/venv3.8/bin/activate > /www/sites/foo.bar/.envrc
+            cd /www/sites/foo.bar
+            ~/.local/bin/uv sync
+
+            echo source /www/sites/foo.bar/.venv/bin/activate > /www/sites/foo.bar/.envrc
             echo export GIT_DIR=/www/sites/foo.bar/git >> /www/sites/foo.bar/.envrc
             echo export GIT_WORK_TREE=/www/sites/foo.bar/src >> /www/sites/foo.bar/.envrc
-            echo unset PS1 >> /www/sites/foo.bar/.envrc
             """
         ))
 #######
